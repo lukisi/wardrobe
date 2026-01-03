@@ -1,0 +1,42 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.log
+*.pot
+*.sqlite3
+*.sqlite3-journal
+db.sqlite3
+db.sqlite3-journal
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.env
+.env.local
+.python-version
+
+# Django specific
+local_settings.py
+media/
+staticfiles/
+collected_static/
+
+# Development tools / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Testing / coverage
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+.pytest_cache/
