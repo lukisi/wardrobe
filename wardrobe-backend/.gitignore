@@ -20,6 +20,8 @@ env/
 .env
 .env.local
 .python-version
+# eventuale template condiviso
+!.env.example
 
 # Django specific
 local_settings.py

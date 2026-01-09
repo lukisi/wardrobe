@@ -10,7 +10,7 @@ lerna-debug.log*
 # environment var
 .env*
 # eventuale template condiviso
-!.env.example   
+!.env.example
 
 # misc
 node_modules
