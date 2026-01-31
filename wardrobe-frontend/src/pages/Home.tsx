@@ -10,7 +10,15 @@ import {
   Card,
   CardContent,
   Grid,
+  Fab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
 import api from '../services/api';
 
 export default function Home() {
@@ -22,6 +30,10 @@ export default function Home() {
   const [token, setToken] = useState(localStorage.getItem('auth_token'));
   const [inventario, setInventario] = useState<any[]>([]);
   const [fetching, setFetching] = useState(false);
+  const [openModal, setOpenModal] = useState(false);
+  const [newDescription, setNewDescription] = useState('');
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   // Carica inventario automaticamente se token presente
   useEffect(() => {
@@ -81,6 +93,35 @@ export default function Home() {
     setInventario([]);
     setSuccess(null);
     setError(null);
+  };
+
+  const handleOpenModal = () => setOpenModal(true);
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setNewDescription('');
+    setModalError(null);
+    setModalLoading(false);
+  };
+
+  const handleCreateItem = async () => {
+    if (!newDescription.trim()) {
+      setModalError('La descrizione è obbligatoria');
+      return;
+    }
+
+    setModalLoading(true);
+    setModalError(null);
+
+    try {
+      await api.post('/api/inventario/create/', { descrizione: newDescription.trim() });
+      setNewDescription('');
+      handleCloseModal();
+      fetchInventario(); // ricarica lista
+    } catch (err: any) {
+      setModalError(err.response?.data?.detail || 'Errore durante la creazione');
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   return (
@@ -154,25 +195,75 @@ export default function Home() {
           ) : inventario.length === 0 ? (
             <Alert severity="info">Nessun articolo presente nell'inventario.</Alert>
           ) : (
-            <Grid container spacing={3} sx={{ width: '100%' }}>
-              {inventario.map((item: any) => (
-                <Grid key={item.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                  <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column', }}>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6" component="div">
-                        {item.codice} - {item.descrizione}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        Quantità: <strong>{item.quantita}</strong>
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+            <>
+              <Grid container spacing={3} sx={{ width: '100%' }}>
+                {inventario.map((item: any) => (
+                  <Grid key={item.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column', }}>
+                      <CardContent sx={{ flexGrow: 1 }}>
+                        <Typography variant="h6" component="div">
+                          {item.codice} - {item.descrizione}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          Quantità: <strong>{item.quantita}</strong>
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+              <Box sx={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1000 }}>
+                <Fab 
+                  color="primary" 
+                  aria-label="add" 
+                  onClick={handleOpenModal}
+                >
+                  <AddIcon />
+                </Fab>
+              </Box>
+            </>
           )}
         </Box>
       )}
+
+      {/* Modale nuovo articolo */}
+      <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Nuovo articolo
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseModal}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Descrizione"
+            fullWidth
+            variant="outlined"
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            error={!!modalError}
+            helperText={modalError}
+          />
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={handleCloseModal}>Annulla</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleCreateItem} 
+            disabled={modalLoading}
+          >
+            {modalLoading ? <CircularProgress size={24} /> : 'Salva'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
