@@ -16,19 +16,30 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
+  MenuItem,
+  Chip,
+  Stack,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import { isAxiosError } from 'axios';
 import api from '../services/api';
-import type { InventarioItem } from '../types';
+import type { CostumeCategoria, InventarioItem } from '../types';
+
+const CATEGORIA_LABELS: Record<CostumeCategoria, string> = {
+  presepe_vivente: 'Presepe Vivente',
+  profeti: 'Profeti',
+  santi: 'Santi',
+  apostoli: 'Apostoli',
+};
 
 export default function Costumi() {
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
-  const [newDescription, setNewDescription] = useState('');
+  const [newNome, setNewNome] = useState('');
+  const [newCategoria, setNewCategoria] = useState<CostumeCategoria>('presepe_vivente');
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -57,14 +68,15 @@ export default function Costumi() {
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => {
     setOpenModal(false);
-    setNewDescription('');
+    setNewNome('');
+    setNewCategoria('presepe_vivente');
     setModalError(null);
     setModalLoading(false);
   };
 
   const handleCreateItem = async () => {
-    if (!newDescription.trim()) {
-      setModalError('La descrizione è obbligatoria');
+    if (!newNome.trim()) {
+      setModalError('Il nome è obbligatorio');
       return;
     }
 
@@ -72,12 +84,23 @@ export default function Costumi() {
     setModalError(null);
 
     try {
-      await api.post('/api/inventario/create/', { descrizione: newDescription.trim() });
+      await api.post('/api/inventario/create/', {
+        nome: newNome.trim(),
+        categoria: newCategoria,
+        quantita: 1,
+        taglie: ['M'],
+      });
       handleCloseModal();
       await fetchInventario();
     } catch (err: unknown) {
       if (isAxiosError(err)) {
-        setModalError(err.response?.data?.detail || 'Errore durante la creazione');
+        const data = err.response?.data;
+        const detail =
+          data?.detail ||
+          data?.nome?.[0] ||
+          data?.categoria?.[0] ||
+          'Errore durante la creazione';
+        setModalError(detail);
       } else {
         setModalError('Errore durante la creazione');
       }
@@ -111,10 +134,19 @@ export default function Costumi() {
               <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Typography variant="h6" component="div">
-                    {item.codice} - {item.descrizione}
+                    {item.codice} - {item.nome}
                   </Typography>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.5 }}>
+                    <Chip size="small" label={CATEGORIA_LABELS[item.categoria] ?? item.categoria} />
+                    <Chip
+                      size="small"
+                      color={item.disponibile ? 'success' : 'default'}
+                      label={item.disponibile ? 'Disponibile' : 'Non disponibile'}
+                    />
+                  </Stack>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                     Quantità: <strong>{item.quantita}</strong>
+                    {item.taglie?.length ? ` · Taglie: ${item.taglie.join(', ')}` : null}
                   </Typography>
                 </CardContent>
               </Card>
@@ -131,7 +163,7 @@ export default function Costumi() {
 
       <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
         <DialogTitle>
-          Nuovo articolo
+          Nuovo costume
           <IconButton
             aria-label="close"
             onClick={handleCloseModal}
@@ -145,14 +177,30 @@ export default function Costumi() {
           <TextField
             autoFocus
             margin="dense"
-            label="Descrizione"
+            label="Nome"
             fullWidth
             variant="outlined"
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
+            value={newNome}
+            onChange={(e) => setNewNome(e.target.value)}
             error={!!modalError}
             helperText={modalError}
+            sx={{ mb: 2 }}
           />
+          <TextField
+            select
+            margin="dense"
+            label="Categoria"
+            fullWidth
+            variant="outlined"
+            value={newCategoria}
+            onChange={(e) => setNewCategoria(e.target.value as CostumeCategoria)}
+          >
+            {(Object.keys(CATEGORIA_LABELS) as CostumeCategoria[]).map((key) => (
+              <MenuItem key={key} value={key}>
+                {CATEGORIA_LABELS[key]}
+              </MenuItem>
+            ))}
+          </TextField>
         </DialogContent>
 
         <DialogActions>
