@@ -3,9 +3,9 @@ from rest_framework.response import Response
 from rest_framework import status, permissions, generics
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from django.db import transaction
 from .models import Inventario
 from .serializers import InventarioSerializer, InventarioCreateSerializer
-from django.db import transaction
 
 
 class LoginView(APIView):
@@ -21,15 +21,15 @@ class LoginView(APIView):
 
         if not username or not password:
             return Response(
-                {"detail": "username e password obbligatori"},
-                status=status.HTTP_400_BAD_REQUEST
+                {'detail': 'username e password obbligatori'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         user = authenticate(username=username, password=password)
         if user is None:
             return Response(
-                {"detail": "Credenziali non valide"},
-                status=status.HTTP_401_UNAUTHORIZED
+                {'detail': 'Credenziali non valide'},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
         refresh = RefreshToken.for_user(user)
@@ -41,7 +41,7 @@ class LoginView(APIView):
 class InventarioListView(APIView):
     """
     GET /api/inventario/
-    Lista tutti gli articoli (solo autenticati)
+    Lista tutti i costumi (solo autenticati)
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -61,17 +61,16 @@ class InventarioCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         with transaction.atomic():
-            # Genera codice univoco automatico (esempio semplice: max attuale +1)
             last_item = Inventario.objects.order_by('-codice').first()
             if last_item:
                 last_code = int(last_item.codice)
-                new_code = f"{last_code + 1:05d}"
+                new_code = f'{last_code + 1:05d}'
             else:
-                new_code = "00001"
+                new_code = '00001'
 
             new_item = Inventario.objects.create(
                 codice=new_code,
-                descrizione=serializer.validated_data['descrizione'],
+                **serializer.validated_data,
             )
 
         return Response(InventarioSerializer(new_item).data, status=status.HTTP_201_CREATED)
