@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Inventario
 
 
-class InventarioSerializer(serializers.ModelSerializer):
+class CostumeSerializer(serializers.ModelSerializer):
     disponibile = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -22,7 +22,7 @@ class InventarioSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'codice', 'disponibile']
 
 
-class InventarioCreateSerializer(serializers.ModelSerializer):
+class CostumeWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Inventario
         fields = [
@@ -46,3 +46,16 @@ class InventarioCreateSerializer(serializers.ModelSerializer):
                 f'Taglie non ammesse: {", ".join(str(t) for t in invalid)}'
             )
         return value
+
+    def validate_categoria(self, value):
+        valid = {choice.value for choice in Inventario.Categoria}
+        if value not in valid:
+            raise serializers.ValidationError(
+                f'Categoria non valida. Usa una di: {", ".join(sorted(valid))}'
+            )
+        return value
+
+
+# Alias retrocompatibili con i nomi usati in Fase 1
+InventarioSerializer = CostumeSerializer
+InventarioCreateSerializer = CostumeWriteSerializer
