@@ -31,13 +31,24 @@ export default function Navbar() {
   };
 
   return (
-    <AppBar position="sticky" color="inherit" elevation={1} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+    <AppBar
+      position="sticky"
+      color="inherit"
+      elevation={0}
+      sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}
+    >
       <Toolbar sx={{ gap: 2, flexWrap: 'wrap' }}>
         <Typography
           variant="h6"
           component={RouterLink}
           to="/"
-          sx={{ color: 'primary.main', textDecoration: 'none', fontWeight: 700, mr: 1 }}
+          sx={{
+            color: 'primary.main',
+            textDecoration: 'none',
+            fontFamily: '"Libre Baskerville", Georgia, serif',
+            fontWeight: 700,
+            mr: 1,
+          }}
         >
           Wardrobe
         </Typography>
