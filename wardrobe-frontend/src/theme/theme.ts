@@ -2,30 +2,64 @@ import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
   palette: {
-    mode: 'light', // puoi cambiare in 'dark' per modalità scura
+    mode: 'light',
     primary: {
-      main: '#1976d2', // blu MUI di default, puoi cambiarlo
+      main: '#b45309',
+      light: '#d97706',
+      dark: '#92400e',
+      contrastText: '#fffbeb',
     },
     secondary: {
-      main: '#dc004e',
+      main: '#57534e',
+      light: '#78716c',
+      dark: '#44403c',
+    },
+    success: {
+      main: '#3f6212',
     },
     background: {
-      default: '#f5f5f5',
+      default: '#f5f5f4',
       paper: '#ffffff',
     },
+    text: {
+      primary: '#1c1917',
+      secondary: '#57534e',
+    },
+    divider: '#e7e5e4',
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h1: { fontSize: '2.5rem' },
-    h2: { fontSize: '2rem' },
-    body1: { fontSize: '1rem' },
+    fontFamily: '"Source Sans 3", "Helvetica", "Arial", sans-serif',
+    h1: { fontFamily: '"Libre Baskerville", Georgia, serif', fontWeight: 700 },
+    h2: { fontFamily: '"Libre Baskerville", Georgia, serif', fontWeight: 700 },
+    h3: { fontFamily: '"Libre Baskerville", Georgia, serif', fontWeight: 700 },
+    h4: { fontFamily: '"Libre Baskerville", Georgia, serif', fontWeight: 700 },
+    h5: { fontFamily: '"Libre Baskerville", Georgia, serif', fontWeight: 700 },
+    h6: { fontFamily: '"Libre Baskerville", Georgia, serif', fontWeight: 600 },
+    button: { fontWeight: 600 },
+  },
+  shape: {
+    borderRadius: 10,
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          textTransform: 'none', // niente MAIUSCOLO forzato
+          textTransform: 'none',
           borderRadius: 8,
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
         },
       },
     },
