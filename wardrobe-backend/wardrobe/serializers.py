@@ -4,6 +4,7 @@ from .models import Inventario
 
 class CostumeSerializer(serializers.ModelSerializer):
     disponibile = serializers.BooleanField(read_only=True)
+    has_immagine = serializers.SerializerMethodField()
 
     class Meta:
         model = Inventario
@@ -13,13 +14,19 @@ class CostumeSerializer(serializers.ModelSerializer):
             'nome',
             'descrizione',
             'categoria',
-            'immagine_url',
+            'has_immagine',
             'taglie',
             'quantita',
             'disponibile',
             'ultimo_utilizzo',
         ]
-        read_only_fields = ['id', 'codice', 'disponibile']
+        read_only_fields = ['id', 'codice', 'disponibile', 'has_immagine']
+
+    def get_has_immagine(self, obj) -> bool:
+        annotated = getattr(obj, '_has_immagine', None)
+        if annotated is not None:
+            return bool(annotated)
+        return obj.immagine is not None
 
 
 class CostumeWriteSerializer(serializers.ModelSerializer):
@@ -29,7 +36,6 @@ class CostumeWriteSerializer(serializers.ModelSerializer):
             'nome',
             'descrizione',
             'categoria',
-            'immagine_url',
             'taglie',
             'quantita',
             'ultimo_utilizzo',
