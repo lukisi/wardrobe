@@ -3,9 +3,9 @@ import { Link as RouterLink } from 'react-router-dom';
 import {
   BRAND_NAME,
   HERO_HEADLINE,
+  HERO_IMAGE_SRC,
   HERO_SUPPORT,
   ORATORIO_NAME,
-  getHeroImageUrl,
 } from '../constants/brand';
 
 const fadeUp = keyframes`
@@ -29,8 +29,6 @@ const kenBurns = keyframes`
 `;
 
 export default function Home() {
-  const heroImage = getHeroImageUrl();
-
   return (
     <Box
       component="section"
@@ -48,7 +46,7 @@ export default function Home() {
         sx={{
           position: 'absolute',
           inset: 0,
-          backgroundImage: `url(${heroImage})`,
+          backgroundImage: `url(${HERO_IMAGE_SRC})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           animation: `${kenBurns} 28s ease-out forwards`,

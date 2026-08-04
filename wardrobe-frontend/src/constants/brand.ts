@@ -9,14 +9,5 @@ export const HERO_HEADLINE = 'Il guardaroba sacro dell’Oratorio';
 export const HERO_SUPPORT =
   'Inventario dei costumi per presepi viventi, santi e ricostruzioni storiche.';
 
-/** Immagine hero: override con VITE_HERO_IMAGE_URL a build-time. */
-export const DEFAULT_HERO_IMAGE_URL =
-  'https://images.unsplash.com/photo-1438032005730-c779502df39b?auto=format&fit=crop&w=2400&q=80';
-
-export function getHeroImageUrl(): string {
-  const fromEnv = import.meta.env.VITE_HERO_IMAGE_URL;
-  if (typeof fromEnv === 'string' && fromEnv.trim()) {
-    return fromEnv.trim();
-  }
-  return DEFAULT_HERO_IMAGE_URL;
-}
+/** Immagine hero locale (servita da `public/`, versionata nel repo). */
+export const HERO_IMAGE_SRC = '/images/hero-home.jpg';
