@@ -53,7 +53,7 @@ export default function Navbar() {
           Wardrobe
         </Typography>
 
-        <Stack direction="row" spacing={1} sx={{ flexGrow: 1 }}>
+        <Stack direction="row" spacing={1} sx={{ flexGrow: 1 }} useFlexGap flexWrap="wrap">
           <Button component={RouterLink} to="/" sx={navLinkSx(location.pathname === '/')}>
             Home
           </Button>
@@ -63,6 +63,13 @@ export default function Navbar() {
             sx={navLinkSx(location.pathname.startsWith('/costumi'))}
           >
             Database Costumi
+          </Button>
+          <Button
+            component={RouterLink}
+            to="/guida"
+            sx={navLinkSx(location.pathname.startsWith('/guida'))}
+          >
+            Guida
           </Button>
           <Button disabled sx={{ textTransform: 'none' }}>
             Prenotazioni
