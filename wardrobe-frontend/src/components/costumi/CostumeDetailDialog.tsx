@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -15,6 +16,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import type { Costume } from '../../types';
 import { CATEGORIA_LABELS } from '../../constants/costumi';
+import { useCostumeImageUrl } from '../../hooks/useCostumeImageUrl';
 
 interface CostumeDetailDialogProps {
   costume: Costume | null;
@@ -40,6 +42,11 @@ export default function CostumeDetailDialog({
   onDelete,
   deleting = false,
 }: CostumeDetailDialogProps) {
+  const { url, loading } = useCostumeImageUrl(
+    open ? costume?.id : null,
+    Boolean(open && costume?.has_immagine),
+  );
+
   if (!costume) return null;
 
   return (
@@ -56,19 +63,34 @@ export default function CostumeDetailDialog({
           spacing={3}
           alignItems={{ xs: 'stretch', sm: 'flex-start' }}
         >
-          {costume.immagine_url ? (
+          {costume.has_immagine ? (
             <Box
-              component="img"
-              src={costume.immagine_url}
-              alt={costume.nome}
               sx={{
                 width: { xs: '100%', sm: 260 },
-                maxHeight: 360,
-                objectFit: 'cover',
+                minHeight: 220,
                 borderRadius: 2,
                 bgcolor: 'grey.200',
+                display: 'grid',
+                placeItems: 'center',
+                overflow: 'hidden',
               }}
-            />
+            >
+              {loading || !url ? (
+                <CircularProgress size={28} />
+              ) : (
+                <Box
+                  component="img"
+                  src={url}
+                  alt={costume.nome}
+                  sx={{
+                    width: '100%',
+                    maxHeight: 360,
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+              )}
+            </Box>
           ) : (
             <Box
               sx={{

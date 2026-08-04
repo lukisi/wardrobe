@@ -18,6 +18,13 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Lascia che il browser imposti il boundary multipart.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers && 'Content-Type' in config.headers) {
+        delete config.headers['Content-Type'];
+      }
+    }
+
     return config;
   },
   (error) => Promise.reject(error)

@@ -16,7 +16,7 @@ export interface InventarioItem {
   nome: string;
   descrizione: string;
   categoria: CostumeCategoria;
-  immagine_url: string;
+  has_immagine: boolean;
   taglie: string[];
   quantita: number;
   disponibile: boolean;
@@ -30,7 +30,6 @@ export interface CostumeWritePayload {
   nome: string;
   descrizione?: string;
   categoria: CostumeCategoria;
-  immagine_url?: string;
   taglie?: string[];
   quantita?: number;
   ultimo_utilizzo?: string | null;

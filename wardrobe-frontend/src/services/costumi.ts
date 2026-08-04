@@ -54,3 +54,23 @@ export async function updateCostume(
 export async function deleteCostume(id: number): Promise<void> {
   await api.delete(`/api/costumi/${id}/`);
 }
+
+export async function fetchCostumeImageBlob(id: number): Promise<Blob> {
+  const { data } = await api.get<Blob>(`/api/costumi/${id}/immagine/`, {
+    responseType: 'blob',
+  });
+  return data;
+}
+
+export async function uploadCostumeImage(id: number, file: File): Promise<Costume> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.put<Costume>(`/api/costumi/${id}/immagine/`, formData, {
+    timeout: 60000,
+  });
+  return data;
+}
+
+export async function deleteCostumeImage(id: number): Promise<void> {
+  await api.delete(`/api/costumi/${id}/immagine/`);
+}
