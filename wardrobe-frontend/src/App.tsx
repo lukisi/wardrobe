@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Costumi from './pages/Costumi';
+import Guida from './pages/Guida';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -27,6 +28,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Costumi />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/guida"
+            element={
+              <ProtectedRoute>
+                <Guida />
               </ProtectedRoute>
             }
           />
