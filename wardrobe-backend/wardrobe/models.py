@@ -10,6 +10,8 @@ class Inventario(models.Model):
         APOSTOLI = 'apostoli', 'Apostoli'
 
     TAGLIE_AMMESSE = ('S', 'M', 'L', 'XL')
+    IMMAGINE_CONTENT_TYPES = ('image/jpeg', 'image/png', 'image/webp')
+    IMMAGINE_MAX_BYTES = 2 * 1024 * 1024
 
     codice = models.CharField(
         max_length=5,
@@ -31,10 +33,17 @@ class Inventario(models.Model):
         db_index=True,
         help_text='Categoria del costume',
     )
-    immagine_url = models.URLField(
+    immagine = models.BinaryField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text='Blob binario dell’immagine del costume',
+    )
+    immagine_content_type = models.CharField(
+        max_length=64,
         blank=True,
         default='',
-        help_text='URL immagine del costume',
+        help_text='MIME type dell’immagine (es. image/jpeg)',
     )
     taglie = models.JSONField(
         default=list,

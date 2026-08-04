@@ -1,7 +1,10 @@
 from django.contrib.auth import authenticate
 from django.db import connection, transaction
-from django.db.models import Count, Q
+from django.db.models import BooleanField, Case, Count, Q, Value, When
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -16,6 +19,17 @@ def generate_next_codice() -> str:
     if last_item:
         return f'{int(last_item.codice) + 1:05d}'
     return '00001'
+
+
+def costumi_base_queryset():
+    """Lista/detail senza caricare il blob; annota presenza immagine."""
+    return Inventario.objects.defer('immagine').annotate(
+        _has_immagine=Case(
+            When(immagine__isnull=True, then=Value(False)),
+            default=Value(True),
+            output_field=BooleanField(),
+        )
+    )
 
 
 def filter_costumi_queryset(queryset, query_params):
@@ -88,7 +102,7 @@ class CostumiListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         return filter_costumi_queryset(
-            Inventario.objects.all(),
+            costumi_base_queryset(),
             self.request.query_params,
         )
 
@@ -118,8 +132,10 @@ class CostumiDetailView(generics.RetrieveUpdateDestroyAPIView):
     GET/PATCH/DELETE /api/costumi/<id>/
     """
     permission_classes = [permissions.IsAuthenticated]
-    queryset = Inventario.objects.all()
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return costumi_base_queryset()
 
     def get_serializer_class(self):
         if self.request.method == 'PATCH':
@@ -132,6 +148,7 @@ class CostumiDetailView(generics.RetrieveUpdateDestroyAPIView):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+        instance = costumi_base_queryset().get(pk=instance.pk)
         return Response(CostumeSerializer(instance).data)
 
 
@@ -168,13 +185,81 @@ class CostumiMetaView(APIView):
         })
 
 
+class CostumeImageView(APIView):
+    """
+    GET/PUT/DELETE /api/costumi/<id>/immagine/
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request, pk):
+        item = get_object_or_404(
+            Inventario.objects.only('id', 'immagine', 'immagine_content_type'),
+            pk=pk,
+        )
+        if item.immagine is None:
+            return Response({'detail': 'Immagine non presente'}, status=status.HTTP_404_NOT_FOUND)
+
+        content_type = item.immagine_content_type or 'application/octet-stream'
+        return HttpResponse(bytes(item.immagine), content_type=content_type)
+
+    def put(self, request, pk):
+        item = get_object_or_404(Inventario, pk=pk)
+        uploaded = request.FILES.get('file')
+        if uploaded is None:
+            return Response(
+                {'detail': 'Campo file obbligatorio (multipart)'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        content_type = (uploaded.content_type or '').lower()
+        if content_type not in Inventario.IMMAGINE_CONTENT_TYPES:
+            return Response(
+                {
+                    'detail': (
+                        'Tipo file non ammesso. Usa: '
+                        + ', '.join(Inventario.IMMAGINE_CONTENT_TYPES)
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = uploaded.read()
+        if len(data) == 0:
+            return Response(
+                {'detail': 'Il file è vuoto'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(data) > Inventario.IMMAGINE_MAX_BYTES:
+            return Response(
+                {'detail': f'Dimensione massima {Inventario.IMMAGINE_MAX_BYTES} byte'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        item.immagine = data
+        item.immagine_content_type = content_type
+        item.save(update_fields=['immagine', 'immagine_content_type'])
+
+        return Response(
+            CostumeSerializer(costumi_base_queryset().get(pk=item.pk)).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def delete(self, request, pk):
+        item = get_object_or_404(Inventario, pk=pk)
+        item.immagine = None
+        item.immagine_content_type = ''
+        item.save(update_fields=['immagine', 'immagine_content_type'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # Alias Fase 1 (deprecati): stessi serializer/comportamento ristretto
 class InventarioListView(APIView):
     """GET /api/inventario/ → lista non paginata (alias legacy)."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        items = Inventario.objects.all()
+        items = costumi_base_queryset()
         return Response(CostumeSerializer(items, many=True).data)
 
 

@@ -5,6 +5,7 @@ from .views import (
     CostumiListCreateView,
     CostumiDetailView,
     CostumiMetaView,
+    CostumeImageView,
     InventarioListView,
     InventarioCreateView,
 )
@@ -17,6 +18,7 @@ urlpatterns = [
     # Fase 2 — API costumi
     path('costumi/', CostumiListCreateView.as_view(), name='costumi-list-create'),
     path('costumi/meta/', CostumiMetaView.as_view(), name='costumi-meta'),
+    path('costumi/<int:pk>/immagine/', CostumeImageView.as_view(), name='costumi-immagine'),
     path('costumi/<int:pk>/', CostumiDetailView.as_view(), name='costumi-detail'),
 
     # Alias legacy Fase 1
