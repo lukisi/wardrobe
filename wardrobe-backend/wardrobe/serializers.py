@@ -10,7 +10,6 @@ class TagliaStockSerializer(serializers.Serializer):
 
 
 class CostumeSerializer(serializers.ModelSerializer):
-    disponibile = serializers.SerializerMethodField()
     has_immagine = serializers.SerializerMethodField()
     taglie_stock = TagliaStockSerializer(source='stock_taglie', many=True, read_only=True)
 
@@ -24,19 +23,14 @@ class CostumeSerializer(serializers.ModelSerializer):
             'categoria',
             'has_immagine',
             'taglie_stock',
-            'disponibile',
-            'ultimo_utilizzo',
         ]
-        read_only_fields = ['id', 'codice', 'disponibile', 'has_immagine', 'taglie_stock']
+        read_only_fields = ['id', 'codice', 'has_immagine', 'taglie_stock']
 
     def get_has_immagine(self, obj) -> bool:
         annotated = getattr(obj, '_has_immagine', None)
         if annotated is not None:
             return bool(annotated)
         return obj.immagine is not None
-
-    def get_disponibile(self, obj) -> bool:
-        return obj.disponibile
 
 
 class CostumeWriteSerializer(serializers.ModelSerializer):
@@ -49,7 +43,6 @@ class CostumeWriteSerializer(serializers.ModelSerializer):
             'descrizione',
             'categoria',
             'taglie_stock',
-            'ultimo_utilizzo',
         ]
 
     def validate_categoria(self, value):

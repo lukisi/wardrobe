@@ -16,6 +16,7 @@ from .pagination import CostumePagination
 from .prenotazioni import (
     assert_can_prenotare,
     disponibilita_costume,
+    exists_taglia_libera_nel_periodo,
     overlapping_attive_qs,
 )
 from .serializers import (
@@ -66,16 +67,27 @@ def filter_costumi_queryset(queryset, query_params):
     if categoria:
         queryset = queryset.filter(categoria=categoria)
 
-    disponibile = query_params.get('disponibile')
-    if disponibile is not None and str(disponibile).strip() != '':
-        value = str(disponibile).strip().lower()
-        if value in ('1', 'true', 'yes', 'si', 'sì'):
-            queryset = queryset.filter(_stock_totale__gt=0)
-        elif value in ('0', 'false', 'no'):
-            queryset = queryset.filter(_stock_totale=0)
-
     taglia = (query_params.get('taglia') or '').strip().upper()
-    if taglia:
+    dal = (query_params.get('dal') or '').strip()
+    al = (query_params.get('al') or '').strip()
+
+    if dal and al:
+        try:
+            from datetime import date as date_cls
+            data_inizio = date_cls.fromisoformat(dal)
+            data_fine = date_cls.fromisoformat(al)
+        except ValueError:
+            return queryset.none()
+        if data_inizio > data_fine:
+            return queryset.none()
+        queryset = queryset.filter(
+            exists_taglia_libera_nel_periodo(
+                data_inizio,
+                data_fine,
+                taglia=taglia or None,
+            )
+        )
+    elif taglia:
         # Exists evita JOIN multipli che altererebbero _stock_totale
         queryset = queryset.filter(
             Exists(
@@ -122,7 +134,7 @@ class LoginView(APIView):
 
 class CostumiListCreateView(generics.ListCreateAPIView):
     """
-    GET  /api/costumi/?q=&categoria=&disponibile=&taglia=&page=&page_size=
+    GET  /api/costumi/?q=&categoria=&taglia=&dal=&al=&page=&page_size=
     POST /api/costumi/
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -187,11 +199,6 @@ class CostumiMetaView(APIView):
     def get(self, request):
         qs = Inventario.objects.all()
         totale = qs.count()
-        disponibili = (
-            qs.annotate(stock=Coalesce(Sum('stock_taglie__quantita'), Value(0)))
-            .filter(stock__gt=0)
-            .count()
-        )
 
         counts = {
             row['categoria']: row['count']
@@ -209,7 +216,6 @@ class CostumiMetaView(APIView):
 
         return Response({
             'totale': totale,
-            'disponibili': disponibili,
             'categorie': categorie,
         })
 

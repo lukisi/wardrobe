@@ -1,8 +1,43 @@
 from datetime import date
 
 from django.core.exceptions import ValidationError
+from django.db.models import Count, Exists, F, IntegerField, OuterRef, Subquery, Value
+from django.db.models.functions import Coalesce
 
 from .models import Inventario, InventarioTaglia, Prenotazione
+
+
+def exists_taglia_libera_nel_periodo(
+    data_inizio: date,
+    data_fine: date,
+    taglia: str | None = None,
+):
+    """Exists: il costume ha almeno una taglia con stock > prenotazioni attive sovrapposte."""
+    impegnate_sq = (
+        Prenotazione.objects.filter(
+            costume_id=OuterRef('costume_id'),
+            taglia=OuterRef('taglia'),
+            stato=Prenotazione.Stato.ATTIVA,
+            data_inizio__lte=data_fine,
+            data_fine__gte=data_inizio,
+        )
+        .order_by()
+        .values('costume_id')
+        .annotate(c=Count('id'))
+        .values('c')
+    )
+    free = InventarioTaglia.objects.annotate(
+        impegnate=Coalesce(
+            Subquery(impegnate_sq[:1], output_field=IntegerField()),
+            Value(0),
+        ),
+    ).filter(
+        costume_id=OuterRef('pk'),
+        quantita__gt=F('impegnate'),
+    )
+    if taglia:
+        free = free.filter(taglia=taglia)
+    return Exists(free)
 
 
 def overlapping_attive_qs(costume_id: int, taglia: str, data_inizio: date, data_fine: date):
