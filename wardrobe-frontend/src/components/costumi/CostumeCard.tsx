@@ -10,7 +10,7 @@ import {
   Skeleton,
 } from '@mui/material';
 import type { Costume } from '../../types';
-import { CATEGORIA_LABELS } from '../../constants/costumi';
+import { CATEGORIA_LABELS, formatTaglieStock } from '../../constants/costumi';
 import { PLACEHOLDER_IMAGE } from '../../constants/immagine';
 import { useCostumeImageUrl } from '../../hooks/useCostumeImageUrl';
 
@@ -77,10 +77,10 @@ export default function CostumeCard({ costume, onClick }: CostumeCardProps) {
               color={costume.disponibile ? 'success' : 'default'}
             />
           </Stack>
-          {costume.taglie?.length > 0 && (
+          {formatTaglieStock(costume.taglie_stock) && (
             <Box>
               <Typography variant="caption" color="text.secondary">
-                Taglie: {costume.taglie.join(' · ')}
+                Taglie: {formatTaglieStock(costume.taglie_stock)}
               </Typography>
             </Box>
           )}

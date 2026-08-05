@@ -7,24 +7,24 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
   FormControlLabel,
   FormHelperText,
   IconButton,
-  InputLabel,
-  ListItemText,
-  MenuItem,
-  OutlinedInput,
-  Select,
   Stack,
   TextField,
   Typography,
   CircularProgress,
-  type SelectChangeEvent,
+  MenuItem,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { isAxiosError } from 'axios';
-import type { Costume, CostumeCategoria, CostumeTaglia, CostumeWritePayload } from '../../types';
+import type {
+  Costume,
+  CostumeCategoria,
+  CostumeTaglia,
+  CostumeWritePayload,
+  TagliaStock,
+} from '../../types';
 import { CATEGORIA_LABELS, CATEGORIA_OPTIONS, TAGLIE_OPTIONS } from '../../constants/costumi';
 import { IMMAGINE_ACCEPT, IMMAGINE_MAX_BYTES } from '../../constants/immagine';
 import { useCostumeImageUrl } from '../../hooks/useCostumeImageUrl';
@@ -42,35 +42,51 @@ interface CostumeFormDialogProps {
   onSubmit: (data: CostumeFormSubmit) => Promise<void>;
 }
 
+type StockForm = Record<CostumeTaglia, string>;
+
 interface FormState {
   nome: string;
   descrizione: string;
   categoria: CostumeCategoria;
-  taglie: CostumeTaglia[];
-  quantita: string;
+  stock: StockForm;
   ultimo_utilizzo: string;
 }
+
+const emptyStock = (): StockForm => ({ S: '0', M: '1', L: '0', XL: '0' });
 
 const emptyForm = (): FormState => ({
   nome: '',
   descrizione: '',
   categoria: 'presepe_vivente',
-  taglie: ['M'],
-  quantita: '1',
+  stock: emptyStock(),
   ultimo_utilizzo: '',
 });
 
 function costumeToForm(costume: Costume): FormState {
+  const stock = emptyStock();
+  for (const row of costume.taglie_stock ?? []) {
+    if (TAGLIE_OPTIONS.includes(row.taglia)) {
+      stock[row.taglia] = String(row.quantita);
+    }
+  }
   return {
     nome: costume.nome,
     descrizione: costume.descrizione ?? '',
     categoria: costume.categoria,
-    taglie: (costume.taglie ?? []).filter((t): t is CostumeTaglia =>
-      TAGLIE_OPTIONS.includes(t as CostumeTaglia),
-    ),
-    quantita: String(costume.quantita ?? 1),
+    stock,
     ultimo_utilizzo: costume.ultimo_utilizzo ?? '',
   };
+}
+
+function stockToPayload(stock: StockForm): TagliaStock[] {
+  const rows: TagliaStock[] = [];
+  for (const taglia of TAGLIE_OPTIONS) {
+    const qty = Number.parseInt(stock[taglia], 10);
+    if (!Number.isNaN(qty) && qty > 0) {
+      rows.push({ taglia, quantita: qty });
+    }
+  }
+  return rows;
 }
 
 function extractError(err: unknown): string {
@@ -78,9 +94,11 @@ function extractError(err: unknown): string {
   const data = err.response?.data;
   if (!data) return 'Errore durante il salvataggio';
   if (typeof data.detail === 'string') return data.detail;
-  for (const key of ['nome', 'categoria', 'taglie', 'quantita', 'file', 'non_field_errors']) {
+  for (const key of ['nome', 'categoria', 'taglie_stock', 'file', 'non_field_errors']) {
     const value = data[key];
-    if (Array.isArray(value) && value[0]) return String(value[0]);
+    if (Array.isArray(value) && value[0]) {
+      return typeof value[0] === 'object' ? JSON.stringify(value[0]) : String(value[0]);
+    }
     if (typeof value === 'string') return value;
   }
   return 'Errore durante il salvataggio';
@@ -125,14 +143,6 @@ export default function CostumeFormDialog({
     return () => URL.revokeObjectURL(url);
   }, [imageFile]);
 
-  const handleTaglieChange = (event: SelectChangeEvent<CostumeTaglia[]>) => {
-    const value = event.target.value;
-    setForm((prev) => ({
-      ...prev,
-      taglie: (typeof value === 'string' ? value.split(',') : value) as CostumeTaglia[],
-    }));
-  };
-
   const handleFileChange = (fileList: FileList | null) => {
     const file = fileList?.[0] ?? null;
     if (!file) {
@@ -158,18 +168,19 @@ export default function CostumeFormDialog({
       return;
     }
 
-    const quantita = Number.parseInt(form.quantita, 10);
-    if (Number.isNaN(quantita) || quantita < 0) {
-      setError('La quantità deve essere un numero ≥ 0');
-      return;
+    for (const taglia of TAGLIE_OPTIONS) {
+      const qty = Number.parseInt(form.stock[taglia], 10);
+      if (Number.isNaN(qty) || qty < 0) {
+        setError(`Quantità non valida per la taglia ${taglia}`);
+        return;
+      }
     }
 
     const payload: CostumeWritePayload = {
       nome: form.nome.trim(),
       descrizione: form.descrizione.trim(),
       categoria: form.categoria,
-      taglie: form.taglie,
-      quantita,
+      taglie_stock: stockToPayload(form.stock),
       ultimo_utilizzo: form.ultimo_utilizzo || null,
     };
 
@@ -284,32 +295,34 @@ export default function CostumeFormDialog({
             </Typography>
           </Box>
 
-          <FormControl fullWidth>
-            <InputLabel id="taglie-label">Taglie</InputLabel>
-            <Select
-              labelId="taglie-label"
-              multiple
-              value={form.taglie}
-              onChange={handleTaglieChange}
-              input={<OutlinedInput label="Taglie" />}
-              renderValue={(selected) => selected.join(', ')}
-            >
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Quantità per taglia
+            </Typography>
+            <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
               {TAGLIE_OPTIONS.map((taglia) => (
-                <MenuItem key={taglia} value={taglia}>
-                  <Checkbox checked={form.taglie.includes(taglia)} />
-                  <ListItemText primary={taglia} />
-                </MenuItem>
+                <TextField
+                  key={taglia}
+                  label={taglia}
+                  type="number"
+                  size="small"
+                  sx={{ width: 88 }}
+                  inputProps={{ min: 0 }}
+                  value={form.stock[taglia]}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      stock: { ...p.stock, [taglia]: e.target.value },
+                    }))
+                  }
+                />
               ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label="Quantità"
-            type="number"
-            fullWidth
-            inputProps={{ min: 0 }}
-            value={form.quantita}
-            onChange={(e) => setForm((p) => ({ ...p, quantita: e.target.value }))}
-          />
+            </Stack>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+              Lascia 0 (o vuoto) se la taglia non è presente in magazzino
+            </Typography>
+          </Box>
+
           <TextField
             label="Ultimo utilizzo"
             type="date"

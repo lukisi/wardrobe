@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
-from django.db import connection, transaction
-from django.db.models import BooleanField, Case, Count, Q, Value, When
+from django.db import transaction
+from django.db.models import BooleanField, Case, Count, Exists, OuterRef, Prefetch, Q, Sum, Value, When
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status
@@ -9,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Inventario
+from .models import Inventario, InventarioTaglia
 from .pagination import CostumePagination
 from .serializers import CostumeSerializer, CostumeWriteSerializer
 
@@ -22,13 +23,24 @@ def generate_next_codice() -> str:
 
 
 def costumi_base_queryset():
-    """Lista/detail senza caricare il blob; annota presenza immagine."""
-    return Inventario.objects.defer('immagine').annotate(
-        _has_immagine=Case(
-            When(immagine__isnull=True, then=Value(False)),
-            default=Value(True),
-            output_field=BooleanField(),
+    """Lista/detail senza caricare il blob; annota immagine e stock totale."""
+    return (
+        Inventario.objects.defer('immagine')
+        .prefetch_related(
+            Prefetch(
+                'stock_taglie',
+                queryset=InventarioTaglia.objects.order_by('taglia'),
+            )
         )
+        .annotate(
+            _has_immagine=Case(
+                When(immagine__isnull=True, then=Value(False)),
+                default=Value(True),
+                output_field=BooleanField(),
+            ),
+            _stock_totale=Coalesce(Sum('stock_taglie__quantita'), Value(0)),
+        )
+        .order_by('codice')
     )
 
 
@@ -47,17 +59,22 @@ def filter_costumi_queryset(queryset, query_params):
     if disponibile is not None and str(disponibile).strip() != '':
         value = str(disponibile).strip().lower()
         if value in ('1', 'true', 'yes', 'si', 'sì'):
-            queryset = queryset.filter(quantita__gt=0)
+            queryset = queryset.filter(_stock_totale__gt=0)
         elif value in ('0', 'false', 'no'):
-            queryset = queryset.filter(quantita=0)
+            queryset = queryset.filter(_stock_totale=0)
 
     taglia = (query_params.get('taglia') or '').strip().upper()
     if taglia:
-        # Postgres supports JSON contains; SQLite stores JSON as text.
-        if connection.vendor == 'postgresql':
-            queryset = queryset.filter(taglie__contains=[taglia])
-        else:
-            queryset = queryset.filter(taglie__icontains=f'"{taglia}"')
+        # Exists evita JOIN multipli che altererebbero _stock_totale
+        queryset = queryset.filter(
+            Exists(
+                InventarioTaglia.objects.filter(
+                    costume_id=OuterRef('pk'),
+                    taglia=taglia,
+                    quantita__gt=0,
+                )
+            )
+        )
 
     return queryset
 
@@ -116,13 +133,10 @@ class CostumiListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         with transaction.atomic():
-            item = Inventario.objects.create(
-                codice=generate_next_codice(),
-                **serializer.validated_data,
-            )
+            item = serializer.save(codice=generate_next_codice())
 
         return Response(
-            CostumeSerializer(item).data,
+            CostumeSerializer(costumi_base_queryset().get(pk=item.pk)).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -162,7 +176,11 @@ class CostumiMetaView(APIView):
     def get(self, request):
         qs = Inventario.objects.all()
         totale = qs.count()
-        disponibili = qs.filter(quantita__gt=0).count()
+        disponibili = (
+            qs.annotate(stock=Coalesce(Sum('stock_taglie__quantita'), Value(0)))
+            .filter(stock__gt=0)
+            .count()
+        )
 
         counts = {
             row['categoria']: row['count']
@@ -253,7 +271,7 @@ class CostumeImageView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# Alias Fase 1 (deprecati): stessi serializer/comportamento ristretto
+# Alias Fase 1 (deprecati)
 class InventarioListView(APIView):
     """GET /api/inventario/ → lista non paginata (alias legacy)."""
     permission_classes = [permissions.IsAuthenticated]
@@ -274,12 +292,9 @@ class InventarioCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         with transaction.atomic():
-            item = Inventario.objects.create(
-                codice=generate_next_codice(),
-                **serializer.validated_data,
-            )
+            item = serializer.save(codice=generate_next_codice())
 
         return Response(
-            CostumeSerializer(item).data,
+            CostumeSerializer(costumi_base_queryset().get(pk=item.pk)).data,
             status=status.HTTP_201_CREATED,
         )

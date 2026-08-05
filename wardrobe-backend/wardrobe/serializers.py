@@ -1,10 +1,18 @@
+from django.db import transaction
 from rest_framework import serializers
-from .models import Inventario
+
+from .models import Inventario, InventarioTaglia
+
+
+class TagliaStockSerializer(serializers.Serializer):
+    taglia = serializers.ChoiceField(choices=[(t, t) for t in Inventario.TAGLIE_AMMESSE])
+    quantita = serializers.IntegerField(min_value=1)
 
 
 class CostumeSerializer(serializers.ModelSerializer):
-    disponibile = serializers.BooleanField(read_only=True)
+    disponibile = serializers.SerializerMethodField()
     has_immagine = serializers.SerializerMethodField()
+    taglie_stock = TagliaStockSerializer(source='stock_taglie', many=True, read_only=True)
 
     class Meta:
         model = Inventario
@@ -15,12 +23,11 @@ class CostumeSerializer(serializers.ModelSerializer):
             'descrizione',
             'categoria',
             'has_immagine',
-            'taglie',
-            'quantita',
+            'taglie_stock',
             'disponibile',
             'ultimo_utilizzo',
         ]
-        read_only_fields = ['id', 'codice', 'disponibile', 'has_immagine']
+        read_only_fields = ['id', 'codice', 'disponibile', 'has_immagine', 'taglie_stock']
 
     def get_has_immagine(self, obj) -> bool:
         annotated = getattr(obj, '_has_immagine', None)
@@ -28,30 +35,22 @@ class CostumeSerializer(serializers.ModelSerializer):
             return bool(annotated)
         return obj.immagine is not None
 
+    def get_disponibile(self, obj) -> bool:
+        return obj.disponibile
+
 
 class CostumeWriteSerializer(serializers.ModelSerializer):
+    taglie_stock = TagliaStockSerializer(many=True, required=False)
+
     class Meta:
         model = Inventario
         fields = [
             'nome',
             'descrizione',
             'categoria',
-            'taglie',
-            'quantita',
+            'taglie_stock',
             'ultimo_utilizzo',
         ]
-
-    def validate_taglie(self, value):
-        if value is None:
-            return []
-        if not isinstance(value, list):
-            raise serializers.ValidationError('Le taglie devono essere una lista')
-        invalid = [t for t in value if t not in Inventario.TAGLIE_AMMESSE]
-        if invalid:
-            raise serializers.ValidationError(
-                f'Taglie non ammesse: {", ".join(str(t) for t in invalid)}'
-            )
-        return value
 
     def validate_categoria(self, value):
         valid = {choice.value for choice in Inventario.Categoria}
@@ -60,6 +59,49 @@ class CostumeWriteSerializer(serializers.ModelSerializer):
                 f'Categoria non valida. Usa una di: {", ".join(sorted(valid))}'
             )
         return value
+
+    def validate_taglie_stock(self, value):
+        if value is None:
+            return []
+        seen = set()
+        cleaned = []
+        for row in value:
+            taglia = row['taglia']
+            if taglia in seen:
+                raise serializers.ValidationError(f'Taglia duplicata: {taglia}')
+            seen.add(taglia)
+            cleaned.append(row)
+        return cleaned
+
+    @staticmethod
+    def _sync_stock(costume: Inventario, stock_rows: list[dict]) -> None:
+        costume.stock_taglie.all().delete()
+        InventarioTaglia.objects.bulk_create([
+            InventarioTaglia(
+                costume=costume,
+                taglia=row['taglia'],
+                quantita=row['quantita'],
+            )
+            for row in stock_rows
+            if row['quantita'] > 0
+        ])
+
+    def create(self, validated_data):
+        stock = validated_data.pop('taglie_stock', [])
+        with transaction.atomic():
+            item = Inventario.objects.create(**validated_data)
+            self._sync_stock(item, stock)
+        return item
+
+    def update(self, instance, validated_data):
+        stock = validated_data.pop('taglie_stock', serializers.empty)
+        with transaction.atomic():
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            if stock is not serializers.empty:
+                self._sync_stock(instance, stock)
+        return instance
 
 
 # Alias retrocompatibili con i nomi usati in Fase 1

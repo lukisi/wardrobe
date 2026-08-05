@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Sum
 
 
 class Inventario(models.Model):
@@ -45,15 +46,6 @@ class Inventario(models.Model):
         default='',
         help_text='MIME type dell’immagine (es. image/jpeg)',
     )
-    taglie = models.JSONField(
-        default=list,
-        blank=True,
-        help_text='Taglie disponibili, es. ["S", "M", "L"]',
-    )
-    quantita = models.PositiveIntegerField(
-        default=0,
-        help_text='Quantità disponibile in magazzino',
-    )
     ultimo_utilizzo = models.DateField(
         null=True,
         blank=True,
@@ -73,17 +65,45 @@ class Inventario(models.Model):
 
     @property
     def disponibile(self) -> bool:
-        return self.quantita > 0
+        annotated = getattr(self, '_stock_totale', None)
+        if annotated is not None:
+            return annotated > 0
+        total = self.stock_taglie.aggregate(s=Sum('quantita'))['s']
+        return bool(total and total > 0)
 
     def clean(self):
         if len(self.codice) != 5:
             raise ValidationError({'codice': 'Il codice deve essere esattamente di 5 caratteri'})
 
-        if not isinstance(self.taglie, list):
-            raise ValidationError({'taglie': 'Le taglie devono essere una lista'})
 
-        invalid = [t for t in self.taglie if t not in self.TAGLIE_AMMESSE]
-        if invalid:
+class InventarioTaglia(models.Model):
+    costume = models.ForeignKey(
+        Inventario,
+        on_delete=models.CASCADE,
+        related_name='stock_taglie',
+    )
+    taglia = models.CharField(
+        max_length=4,
+        choices=[(t, t) for t in Inventario.TAGLIE_AMMESSE],
+    )
+    quantita = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Stock taglia'
+        verbose_name_plural = 'Stock per taglia'
+        ordering = ['taglia']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['costume', 'taglia'],
+                name='uniq_inventario_taglia',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.costume.codice} {self.taglia}×{self.quantita}'
+
+    def clean(self):
+        if self.taglia not in Inventario.TAGLIE_AMMESSE:
             raise ValidationError({
-                'taglie': f'Taglie non ammesse: {", ".join(invalid)}. Usa {", ".join(self.TAGLIE_AMMESSE)}',
+                'taglia': f'Taglia non ammessa. Usa {", ".join(Inventario.TAGLIE_AMMESSE)}',
             })
