@@ -2,7 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Inventario, InventarioTaglia
+from .models import Inventario, InventarioTaglia, Prenotazione
 
 
 class InventarioTagliaInline(admin.TabularInline):
@@ -106,3 +106,22 @@ class InventarioAdmin(admin.ModelAdmin):
             mime,
             b64,
         )
+
+
+@admin.register(Prenotazione)
+class PrenotazioneAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'costume',
+        'taglia',
+        'data_inizio',
+        'data_fine',
+        'stato',
+        'creata_da',
+        'creata_il',
+    )
+    list_filter = ('stato', 'taglia', 'data_inizio')
+    search_fields = ('costume__codice', 'costume__nome', 'note', 'creata_da__username')
+    ordering = ('-data_inizio', '-id')
+    autocomplete_fields = ('costume', 'creata_da')
+    readonly_fields = ('creata_il',)

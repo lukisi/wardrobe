@@ -17,7 +17,7 @@ const SECTIONS = [
   },
   {
     title: 'Dopo l’evento',
-    body: 'Riporta i costumi in magazzino, aggiorna l’ultimo utilizzo e la quantità. Le prenotazioni online arriveranno in una fase successiva: per ora il flusso resta manuale.',
+    body: 'Riporta i costumi in magazzino e aggiorna l’ultimo utilizzo. Usa Prenotazioni per bloccare costume e taglia nel periodo dell’evento: lo stock fisico non cambia, la disponibilità è calcolata sulle prenotazioni attive sovrapposte.',
   },
 ] as const;
 
@@ -48,9 +48,18 @@ export default function Guida() {
         ))}
       </Stack>
 
-      <Box sx={{ mt: 5 }}>
+      <Box sx={{ mt: 5, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
         <Link component={RouterLink} to="/costumi" underline="hover" color="primary" fontWeight={600}>
           Apri il database costumi →
+        </Link>
+        <Link
+          component={RouterLink}
+          to="/prenotazioni"
+          underline="hover"
+          color="primary"
+          fontWeight={600}
+        >
+          Vai alle prenotazioni →
         </Link>
       </Box>
     </Container>

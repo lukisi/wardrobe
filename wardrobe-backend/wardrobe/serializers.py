@@ -1,7 +1,7 @@
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import Inventario, InventarioTaglia
+from .models import Inventario, InventarioTaglia, Prenotazione
 
 
 class TagliaStockSerializer(serializers.Serializer):
@@ -107,3 +107,48 @@ class CostumeWriteSerializer(serializers.ModelSerializer):
 # Alias retrocompatibili con i nomi usati in Fase 1
 InventarioSerializer = CostumeSerializer
 InventarioCreateSerializer = CostumeWriteSerializer
+
+
+class PrenotazioneSerializer(serializers.ModelSerializer):
+    costume_codice = serializers.CharField(source='costume.codice', read_only=True)
+    costume_nome = serializers.CharField(source='costume.nome', read_only=True)
+    creata_da_username = serializers.CharField(source='creata_da.username', read_only=True)
+
+    class Meta:
+        model = Prenotazione
+        fields = [
+            'id',
+            'costume',
+            'costume_codice',
+            'costume_nome',
+            'taglia',
+            'data_inizio',
+            'data_fine',
+            'stato',
+            'note',
+            'creata_da',
+            'creata_da_username',
+            'creata_il',
+        ]
+        read_only_fields = [
+            'id',
+            'stato',
+            'creata_da',
+            'creata_da_username',
+            'creata_il',
+            'costume_codice',
+            'costume_nome',
+        ]
+
+
+class PrenotazioneCreateSerializer(serializers.Serializer):
+    costume = serializers.PrimaryKeyRelatedField(queryset=Inventario.objects.all())
+    taglia = serializers.ChoiceField(choices=[(t, t) for t in Inventario.TAGLIE_AMMESSE])
+    data_inizio = serializers.DateField()
+    data_fine = serializers.DateField()
+    note = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate(self, attrs):
+        if attrs['data_inizio'] > attrs['data_fine']:
+            raise serializers.ValidationError({'data_fine': 'La data fine deve essere ≥ data inizio'})
+        return attrs

@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import BooleanField, Case, Count, Exists, OuterRef, Prefetch, Q, Sum, Value, When
 from django.db.models.functions import Coalesce
@@ -10,9 +11,19 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Inventario, InventarioTaglia
+from .models import Inventario, InventarioTaglia, Prenotazione
 from .pagination import CostumePagination
-from .serializers import CostumeSerializer, CostumeWriteSerializer
+from .prenotazioni import (
+    assert_can_prenotare,
+    disponibilita_costume,
+    overlapping_attive_qs,
+)
+from .serializers import (
+    CostumeSerializer,
+    CostumeWriteSerializer,
+    PrenotazioneCreateSerializer,
+    PrenotazioneSerializer,
+)
 
 
 def generate_next_codice() -> str:
@@ -298,3 +309,144 @@ class InventarioCreateView(generics.CreateAPIView):
             CostumeSerializer(costumi_base_queryset().get(pk=item.pk)).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class CostumeDisponibilitaView(APIView):
+    """
+    GET /api/costumi/<id>/disponibilita/?dal=YYYY-MM-DD&al=YYYY-MM-DD
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        costume = get_object_or_404(Inventario.objects.prefetch_related('stock_taglie'), pk=pk)
+        dal = request.query_params.get('dal')
+        al = request.query_params.get('al')
+        if not dal or not al:
+            return Response(
+                {'detail': 'Parametri dal e al obbligatori (YYYY-MM-DD)'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            from datetime import date as date_cls
+            data_inizio = date_cls.fromisoformat(dal)
+            data_fine = date_cls.fromisoformat(al)
+        except ValueError:
+            return Response(
+                {'detail': 'Date non valide. Usa YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if data_inizio > data_fine:
+            return Response(
+                {'detail': 'dal deve essere ≤ al'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response({
+            'costume': costume.id,
+            'dal': data_inizio,
+            'al': data_fine,
+            'taglie': disponibilita_costume(costume, data_inizio, data_fine),
+        })
+
+
+class PrenotazioniListCreateView(APIView):
+    """
+    GET  /api/prenotazioni/?dal=&al=&costume=&stato=&taglia=
+    POST /api/prenotazioni/
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        qs = Prenotazione.objects.select_related('costume', 'creata_da').all()
+
+        costume = request.query_params.get('costume')
+        if costume:
+            qs = qs.filter(costume_id=costume)
+
+        stato = (request.query_params.get('stato') or '').strip()
+        if stato:
+            qs = qs.filter(stato=stato)
+
+        taglia = (request.query_params.get('taglia') or '').strip().upper()
+        if taglia:
+            qs = qs.filter(taglia=taglia)
+
+        dal = request.query_params.get('dal')
+        al = request.query_params.get('al')
+        if dal and al:
+            try:
+                from datetime import date as date_cls
+                data_inizio = date_cls.fromisoformat(dal)
+                data_fine = date_cls.fromisoformat(al)
+                qs = qs.filter(data_inizio__lte=data_fine, data_fine__gte=data_inizio)
+            except ValueError:
+                return Response(
+                    {'detail': 'Date non valide. Usa YYYY-MM-DD'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        return Response(PrenotazioneSerializer(qs, many=True).data)
+
+    def post(self, request):
+        serializer = PrenotazioneCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        costume = data['costume']
+        taglia = data['taglia']
+        data_inizio = data['data_inizio']
+        data_fine = data['data_fine']
+
+        try:
+            with transaction.atomic():
+                InventarioTaglia.objects.select_for_update().filter(
+                    costume_id=costume.id,
+                    taglia=taglia,
+                ).first()
+                list(
+                    overlapping_attive_qs(
+                        costume.id, taglia, data_inizio, data_fine,
+                    ).select_for_update()
+                )
+                assert_can_prenotare(costume.id, taglia, data_inizio, data_fine)
+                prenotazione = Prenotazione.objects.create(
+                    costume=costume,
+                    taglia=taglia,
+                    data_inizio=data_inizio,
+                    data_fine=data_fine,
+                    note=data.get('note') or '',
+                    creata_da=request.user,
+                    stato=Prenotazione.Stato.ATTIVA,
+                )
+        except DjangoValidationError as exc:
+            detail = exc.message_dict if hasattr(exc, 'message_dict') else {'detail': list(exc.messages)}
+            return Response(detail, status=status.HTTP_400_BAD_REQUEST)
+
+        prenotazione = Prenotazione.objects.select_related('costume', 'creata_da').get(pk=prenotazione.pk)
+        return Response(
+            PrenotazioneSerializer(prenotazione).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class PrenotazioneDetailView(APIView):
+    """GET /api/prenotazioni/<id>/"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        prenotazione = get_object_or_404(
+            Prenotazione.objects.select_related('costume', 'creata_da'),
+            pk=pk,
+        )
+        return Response(PrenotazioneSerializer(prenotazione).data)
+
+
+class PrenotazioneAnnullaView(APIView):
+    """POST /api/prenotazioni/<id>/annulla/"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        prenotazione = get_object_or_404(Prenotazione, pk=pk)
+        if prenotazione.stato != Prenotazione.Stato.ANNULLATA:
+            prenotazione.stato = Prenotazione.Stato.ANNULLATA
+            prenotazione.save(update_fields=['stato'])
+        prenotazione = Prenotazione.objects.select_related('costume', 'creata_da').get(pk=pk)
+        return Response(PrenotazioneSerializer(prenotazione).data)

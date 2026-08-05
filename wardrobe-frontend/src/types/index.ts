@@ -72,3 +72,50 @@ export type InventarioCreatePayload = CostumeWritePayload;
 export interface LoginResponse {
   access: string;
 }
+
+export type PrenotazioneStato = 'attiva' | 'annullata';
+
+export interface Prenotazione {
+  id: number;
+  costume: number;
+  costume_codice: string;
+  costume_nome: string;
+  taglia: CostumeTaglia;
+  data_inizio: string;
+  data_fine: string;
+  stato: PrenotazioneStato;
+  note: string;
+  creata_da: number;
+  creata_da_username: string;
+  creata_il: string;
+}
+
+export interface PrenotazioneCreatePayload {
+  costume: number;
+  taglia: CostumeTaglia;
+  data_inizio: string;
+  data_fine: string;
+  note?: string;
+}
+
+export interface PrenotazioniListParams {
+  dal?: string;
+  al?: string;
+  costume?: number;
+  stato?: PrenotazioneStato | '';
+  taglia?: CostumeTaglia | '';
+}
+
+export interface TagliaDisponibilita {
+  taglia: CostumeTaglia;
+  stock: number;
+  impegnate: number;
+  disponibili: number;
+}
+
+export interface CostumeDisponibilita {
+  costume: number;
+  dal: string;
+  al: string;
+  taglie: TagliaDisponibilita[];
+}

@@ -4,7 +4,6 @@ import {
   Typography,
   Button,
   Box,
-  Chip,
   Stack,
 } from '@mui/material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
@@ -66,15 +65,18 @@ export default function Navbar() {
           </Button>
           <Button
             component={RouterLink}
+            to="/prenotazioni"
+            sx={navLinkSx(location.pathname.startsWith('/prenotazioni'))}
+          >
+            Prenotazioni
+          </Button>
+          <Button
+            component={RouterLink}
             to="/guida"
             sx={navLinkSx(location.pathname.startsWith('/guida'))}
           >
             Guida
           </Button>
-          <Button disabled sx={{ textTransform: 'none' }}>
-            Prenotazioni
-          </Button>
-          <Chip label="Prossimamente" size="small" variant="outlined" sx={{ alignSelf: 'center' }} />
         </Stack>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
