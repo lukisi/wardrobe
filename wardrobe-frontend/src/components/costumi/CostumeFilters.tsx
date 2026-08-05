@@ -1,9 +1,12 @@
 import {
   Box,
   Chip,
+  FormControl,
   FormControlLabel,
+  FormLabel,
+  Radio,
+  RadioGroup,
   Stack,
-  Switch,
   TextField,
   Typography,
   InputAdornment,
@@ -12,10 +15,14 @@ import SearchIcon from '@mui/icons-material/Search';
 import type { CostumeCategoria, CostumeTaglia, CostumiMeta } from '../../types';
 import { CATEGORIA_LABELS, CATEGORIA_OPTIONS, TAGLIE_OPTIONS } from '../../constants/costumi';
 
+export type CatalogoFilterMode = 'tutti' | 'periodo';
+
 export interface CostumeFiltersState {
   q: string;
   categoria: CostumeCategoria | '';
-  soloDisponibili: boolean;
+  mode: CatalogoFilterMode;
+  dal: string;
+  al: string;
   taglia: CostumeTaglia | '';
 }
 
@@ -97,16 +104,54 @@ export default function CostumeFilters({ value, meta, onChange }: CostumeFilters
         </Stack>
       </Box>
 
-      <FormControlLabel
-        control={
-          <Switch
-            checked={value.soloDisponibili}
-            onChange={(e) => onChange({ ...value, soloDisponibili: e.target.checked })}
-            color="primary"
+      <FormControl>
+        <FormLabel id="catalogo-mode-label" sx={{ typography: 'subtitle2', mb: 0.5, color: 'text.primary' }}>
+          Visualizzazione
+        </FormLabel>
+        <RadioGroup
+          aria-labelledby="catalogo-mode-label"
+          value={value.mode}
+          onChange={(e) =>
+            onChange({ ...value, mode: e.target.value as CatalogoFilterMode })
+          }
+        >
+          <FormControlLabel value="tutti" control={<Radio size="small" />} label="Tutto il catalogo" />
+          <FormControlLabel
+            value="periodo"
+            control={<Radio size="small" />}
+            label="Disponibili nel periodo"
           />
-        }
-        label="Solo disponibili"
-      />
+        </RadioGroup>
+      </FormControl>
+
+      {value.mode === 'periodo' && (
+        <Stack spacing={1.5}>
+          <TextField
+            label="Dal"
+            type="date"
+            size="small"
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+            value={value.dal}
+            onChange={(e) => onChange({ ...value, dal: e.target.value })}
+          />
+          <TextField
+            label="Al"
+            type="date"
+            size="small"
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+            value={value.al}
+            onChange={(e) => onChange({ ...value, al: e.target.value })}
+            error={Boolean(value.dal && value.al && value.al < value.dal)}
+            helperText={
+              value.dal && value.al && value.al < value.dal
+                ? 'La data fine deve essere ≥ data inizio'
+                : 'Mostra solo costumi con almeno una taglia libera nel periodo'
+            }
+          />
+        </Stack>
+      )}
     </Stack>
   );
 }

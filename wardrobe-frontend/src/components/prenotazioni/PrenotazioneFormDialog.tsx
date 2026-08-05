@@ -84,11 +84,14 @@ export default function PrenotazioneFormDialog({
     setLoadingCostumi(true);
     void (async () => {
       try {
-        const data = await fetchCostumi({ page_size: 200, disponibile: true });
+        const data = await fetchCostumi({ page_size: 200 });
         if (cancelled) return;
-        setCostumi(data.results);
+        const withStock = data.results.filter((c) =>
+          c.taglie_stock.some((r) => r.quantita > 0),
+        );
+        setCostumi(withStock);
         const prefill = initialCostumeId
-          ? data.results.find((c) => c.id === initialCostumeId) ?? null
+          ? withStock.find((c) => c.id === initialCostumeId) ?? null
           : null;
         setCostume(prefill);
         if (prefill) {

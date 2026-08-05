@@ -12,9 +12,9 @@ function toQuery(params: CostumiListParams): Record<string, string | number> {
 
   if (params.q?.trim()) query.q = params.q.trim();
   if (params.categoria) query.categoria = params.categoria;
-  if (params.disponibile === true) query.disponibile = 'true';
-  if (params.disponibile === false) query.disponibile = 'false';
   if (params.taglia) query.taglia = params.taglia;
+  if (params.dal) query.dal = params.dal;
+  if (params.al) query.al = params.al;
   if (params.page) query.page = params.page;
   if (params.page_size) query.page_size = params.page_size;
 

@@ -49,7 +49,6 @@ interface FormState {
   descrizione: string;
   categoria: CostumeCategoria;
   stock: StockForm;
-  ultimo_utilizzo: string;
 }
 
 const emptyStock = (): StockForm => ({ S: '0', M: '1', L: '0', XL: '0' });
@@ -59,7 +58,6 @@ const emptyForm = (): FormState => ({
   descrizione: '',
   categoria: 'presepe_vivente',
   stock: emptyStock(),
-  ultimo_utilizzo: '',
 });
 
 function costumeToForm(costume: Costume): FormState {
@@ -74,7 +72,6 @@ function costumeToForm(costume: Costume): FormState {
     descrizione: costume.descrizione ?? '',
     categoria: costume.categoria,
     stock,
-    ultimo_utilizzo: costume.ultimo_utilizzo ?? '',
   };
 }
 
@@ -181,7 +178,6 @@ export default function CostumeFormDialog({
       descrizione: form.descrizione.trim(),
       categoria: form.categoria,
       taglie_stock: stockToPayload(form.stock),
-      ultimo_utilizzo: form.ultimo_utilizzo || null,
     };
 
     setLoading(true);
@@ -323,14 +319,6 @@ export default function CostumeFormDialog({
             </Typography>
           </Box>
 
-          <TextField
-            label="Ultimo utilizzo"
-            type="date"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            value={form.ultimo_utilizzo}
-            onChange={(e) => setForm((p) => ({ ...p, ultimo_utilizzo: e.target.value }))}
-          />
           {error && <FormHelperText error>{error}</FormHelperText>}
         </Stack>
       </DialogContent>
