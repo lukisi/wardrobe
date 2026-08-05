@@ -15,7 +15,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import type { Costume } from '../../types';
-import { CATEGORIA_LABELS } from '../../constants/costumi';
+import { CATEGORIA_LABELS, formatTaglieStock } from '../../constants/costumi';
 import { useCostumeImageUrl } from '../../hooks/useCostumeImageUrl';
 
 interface CostumeDetailDialogProps {
@@ -130,11 +130,8 @@ export default function CostumeDetailDialog({
             </Typography>
 
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              <strong>Quantità:</strong> {costume.quantita}
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 0.5 }}>
               <strong>Taglie:</strong>{' '}
-              {costume.taglie?.length ? costume.taglie.join(', ') : '—'}
+              {formatTaglieStock(costume.taglie_stock) || '—'}
             </Typography>
             <Typography variant="body2">
               <strong>Ultimo utilizzo:</strong> {formatDate(costume.ultimo_utilizzo)}

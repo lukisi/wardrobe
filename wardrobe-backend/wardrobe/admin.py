@@ -2,7 +2,13 @@ from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Inventario
+from .models import Inventario, InventarioTaglia
+
+
+class InventarioTagliaInline(admin.TabularInline):
+    model = InventarioTaglia
+    extra = 1
+    min_num = 0
 
 
 class InventarioAdminForm(forms.ModelForm):
@@ -19,8 +25,6 @@ class InventarioAdminForm(forms.ModelForm):
             'nome',
             'descrizione',
             'categoria',
-            'taglie',
-            'quantita',
             'ultimo_utilizzo',
         )
 
@@ -46,11 +50,12 @@ class InventarioAdminForm(forms.ModelForm):
 @admin.register(Inventario)
 class InventarioAdmin(admin.ModelAdmin):
     form = InventarioAdminForm
+    inlines = [InventarioTagliaInline]
     list_display = (
         'codice',
         'nome',
         'categoria',
-        'quantita',
+        'stock_display',
         'disponibile_display',
         'has_immagine_display',
         'ultimo_utilizzo',
@@ -64,15 +69,22 @@ class InventarioAdmin(admin.ModelAdmin):
             'fields': ('codice', 'nome', 'descrizione'),
         }),
         ('Classificazione', {
-            'fields': ('categoria', 'taglie'),
+            'fields': ('categoria',),
         }),
         ('Magazzino', {
-            'fields': ('quantita', 'ultimo_utilizzo'),
+            'fields': ('ultimo_utilizzo',),
         }),
         ('Media', {
             'fields': ('anteprima_immagine', 'immagine_upload'),
         }),
     )
+
+    @admin.display(description='Stock')
+    def stock_display(self, obj: Inventario) -> str:
+        rows = list(obj.stock_taglie.all())
+        if not rows:
+            return '—'
+        return ' · '.join(f'{r.taglia}×{r.quantita}' for r in rows)
 
     @admin.display(boolean=True, description='Disponibile')
     def disponibile_display(self, obj: Inventario) -> bool:
@@ -86,7 +98,6 @@ class InventarioAdmin(admin.ModelAdmin):
     def anteprima_immagine(self, obj: Inventario):
         if not obj.pk or obj.immagine is None:
             return '—'
-        # Admin preview via data URI (small seed images only; fine for oratorio scale)
         import base64
         b64 = base64.b64encode(bytes(obj.immagine)).decode('ascii')
         mime = obj.immagine_content_type or 'image/jpeg'

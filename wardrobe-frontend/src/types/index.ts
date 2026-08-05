@@ -10,6 +10,11 @@ export type CostumeCategoria =
 
 export type CostumeTaglia = 'S' | 'M' | 'L' | 'XL';
 
+export interface TagliaStock {
+  taglia: CostumeTaglia;
+  quantita: number;
+}
+
 export interface InventarioItem {
   id: number;
   codice: string;
@@ -17,8 +22,7 @@ export interface InventarioItem {
   descrizione: string;
   categoria: CostumeCategoria;
   has_immagine: boolean;
-  taglie: string[];
-  quantita: number;
+  taglie_stock: TagliaStock[];
   disponibile: boolean;
   ultimo_utilizzo: string | null;
 }
@@ -30,8 +34,7 @@ export interface CostumeWritePayload {
   nome: string;
   descrizione?: string;
   categoria: CostumeCategoria;
-  taglie?: string[];
-  quantita?: number;
+  taglie_stock?: TagliaStock[];
   ultimo_utilizzo?: string | null;
 }
 
