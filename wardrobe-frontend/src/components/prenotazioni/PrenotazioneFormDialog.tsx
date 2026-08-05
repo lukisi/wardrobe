@@ -34,6 +34,9 @@ interface PrenotazioneFormDialogProps {
   onCreated: () => void;
   /** Prefill costume id (es. da dettaglio costume). */
   initialCostumeId?: number | null;
+  /** Prefill date range (es. da filtri catalogo). */
+  initialDal?: string | null;
+  initialAl?: string | null;
 }
 
 function todayISO(): string {
@@ -59,6 +62,8 @@ export default function PrenotazioneFormDialog({
   onClose,
   onCreated,
   initialCostumeId = null,
+  initialDal = null,
+  initialAl = null,
 }: PrenotazioneFormDialogProps) {
   const [costumi, setCostumi] = useState<Costume[]>([]);
   const [loadingCostumi, setLoadingCostumi] = useState(false);
@@ -75,8 +80,11 @@ export default function PrenotazioneFormDialog({
     if (!open) return;
     setError(null);
     setNote('');
-    setDataInizio(todayISO());
-    setDataFine(todayISO());
+    const dal = initialDal?.trim();
+    const al = initialAl?.trim();
+    const datesValid = Boolean(dal && al && al >= dal);
+    setDataInizio(datesValid ? dal! : todayISO());
+    setDataFine(datesValid ? al! : todayISO());
     setTaglia('');
     setDisponibiliHint(null);
 
@@ -111,7 +119,7 @@ export default function PrenotazioneFormDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, initialCostumeId]);
+  }, [open, initialCostumeId, initialDal, initialAl]);
 
   const taglieOptions = useMemo(() => {
     if (!costume) return TAGLIE_OPTIONS;

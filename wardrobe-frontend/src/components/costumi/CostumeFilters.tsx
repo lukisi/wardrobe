@@ -26,6 +26,60 @@ export interface CostumeFiltersState {
   taglia: CostumeTaglia | '';
 }
 
+export const INITIAL_COSTUME_FILTERS: CostumeFiltersState = {
+  q: '',
+  categoria: '',
+  mode: 'tutti',
+  dal: '',
+  al: '',
+  taglia: '',
+};
+
+export function parseCostumeFiltersFromSearch(
+  params: URLSearchParams,
+): { filters: CostumeFiltersState; page: number } {
+  const categoriaRaw = params.get('categoria') ?? '';
+  const categoria = (CATEGORIA_OPTIONS as string[]).includes(categoriaRaw)
+    ? (categoriaRaw as CostumeCategoria)
+    : '';
+  const tagliaRaw = (params.get('taglia') ?? '').toUpperCase();
+  const taglia = (TAGLIE_OPTIONS as string[]).includes(tagliaRaw)
+    ? (tagliaRaw as CostumeTaglia)
+    : '';
+  const mode: CatalogoFilterMode = params.get('mode') === 'periodo' ? 'periodo' : 'tutti';
+  const pageRaw = Number.parseInt(params.get('page') || '1', 10);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+
+  return {
+    filters: {
+      q: params.get('q') ?? '',
+      categoria,
+      mode,
+      dal: mode === 'periodo' ? (params.get('dal') ?? '') : '',
+      al: mode === 'periodo' ? (params.get('al') ?? '') : '',
+      taglia,
+    },
+    page,
+  };
+}
+
+export function costumeFiltersToSearchParams(
+  filters: CostumeFiltersState,
+  page: number,
+): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.q.trim()) params.set('q', filters.q.trim());
+  if (filters.categoria) params.set('categoria', filters.categoria);
+  if (filters.taglia) params.set('taglia', filters.taglia);
+  if (filters.mode === 'periodo') {
+    params.set('mode', 'periodo');
+    if (filters.dal) params.set('dal', filters.dal);
+    if (filters.al) params.set('al', filters.al);
+  }
+  if (page > 1) params.set('page', String(page));
+  return params;
+}
+
 interface CostumeFiltersProps {
   value: CostumeFiltersState;
   meta: CostumiMeta | null;

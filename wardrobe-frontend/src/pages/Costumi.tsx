@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -19,10 +19,12 @@ import { useTheme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { isAxiosError } from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import CostumeCard from '../components/costumi/CostumeCard';
 import CostumeDetailDialog from '../components/costumi/CostumeDetailDialog';
 import CostumeFilters, {
+  costumeFiltersToSearchParams,
+  parseCostumeFiltersFromSearch,
   type CostumeFiltersState,
 } from '../components/costumi/CostumeFilters';
 import CostumeFormDialog, {
@@ -41,15 +43,6 @@ import {
 } from '../services/costumi';
 import type { Costume, CostumiMeta } from '../types';
 
-const INITIAL_FILTERS: CostumeFiltersState = {
-  q: '',
-  categoria: '',
-  mode: 'tutti',
-  dal: '',
-  al: '',
-  taglia: '',
-};
-
 function periodFilterReady(filters: CostumeFiltersState): boolean {
   if (filters.mode !== 'periodo') return false;
   if (!filters.dal || !filters.al) return false;
@@ -60,10 +53,13 @@ export default function Costumi() {
   const theme = useTheme();
   const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [filters, setFilters] = useState<CostumeFiltersState>(INITIAL_FILTERS);
+  const { filters, page } = useMemo(
+    () => parseCostumeFiltersFromSearch(searchParams),
+    [searchParams],
+  );
   const debouncedQ = useDebouncedValue(filters.q, 300);
-  const [page, setPage] = useState(1);
 
   const [items, setItems] = useState<Costume[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -77,6 +73,15 @@ export default function Costumi() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Costume | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const replaceSearch = useCallback(
+    (nextFilters: CostumeFiltersState, nextPage: number) => {
+      const next = costumeFiltersToSearchParams(nextFilters, nextPage);
+      if (next.toString() === searchParams.toString()) return;
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   const loadMeta = useCallback(async () => {
     try {
@@ -137,10 +142,6 @@ export default function Costumi() {
     void loadList();
   }, [loadList]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedQ, filters.categoria, filters.taglia, filters.mode, filters.dal, filters.al]);
-
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const handleOpenCreate = () => {
@@ -195,7 +196,7 @@ export default function Costumi() {
       value={filters}
       meta={meta}
       onChange={(next) => {
-        setFilters(next);
+        replaceSearch(next, 1);
       }}
     />
   );
@@ -219,11 +220,7 @@ export default function Costumi() {
         </Box>
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap' }}>
           {meta && (
-            <Chip
-              color="primary"
-              variant="outlined"
-              label={`${meta.totale} costumi`}
-            />
+            <Chip color="primary" variant="outlined" label={`${meta.totale} costumi`} />
           )}
           {!isMdUp && (
             <Button
@@ -299,7 +296,7 @@ export default function Costumi() {
                   <Pagination
                     count={pageCount}
                     page={page}
-                    onChange={(_, value) => setPage(value)}
+                    onChange={(_, value) => replaceSearch(filters, value)}
                     color="primary"
                   />
                 </Box>
@@ -338,7 +335,12 @@ export default function Costumi() {
         onDelete={(c) => void handleDelete(c)}
         onPrenota={(c) => {
           setDetailOpen(false);
-          navigate(`/prenotazioni?costume=${c.id}`);
+          const params = new URLSearchParams({ costume: String(c.id) });
+          if (periodFilterReady(filters)) {
+            params.set('dal', filters.dal);
+            params.set('al', filters.al);
+          }
+          navigate(`/prenotazioni?${params.toString()}`);
         }}
         deleting={deleting}
       />
