@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Box,
   Button,
   Checkbox,
   Dialog,
@@ -7,6 +8,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   FormHelperText,
   IconButton,
   InputLabel,
@@ -16,6 +18,7 @@ import {
   Select,
   Stack,
   TextField,
+  Typography,
   CircularProgress,
   type SelectChangeEvent,
 } from '@mui/material';
@@ -23,19 +26,26 @@ import CloseIcon from '@mui/icons-material/Close';
 import { isAxiosError } from 'axios';
 import type { Costume, CostumeCategoria, CostumeTaglia, CostumeWritePayload } from '../../types';
 import { CATEGORIA_LABELS, CATEGORIA_OPTIONS, TAGLIE_OPTIONS } from '../../constants/costumi';
+import { IMMAGINE_ACCEPT, IMMAGINE_MAX_BYTES } from '../../constants/immagine';
+import { useCostumeImageUrl } from '../../hooks/useCostumeImageUrl';
+
+export interface CostumeFormSubmit {
+  payload: CostumeWritePayload;
+  imageFile?: File | null;
+  removeImage?: boolean;
+}
 
 interface CostumeFormDialogProps {
   open: boolean;
   costume?: Costume | null;
   onClose: () => void;
-  onSubmit: (payload: CostumeWritePayload) => Promise<void>;
+  onSubmit: (data: CostumeFormSubmit) => Promise<void>;
 }
 
 interface FormState {
   nome: string;
   descrizione: string;
   categoria: CostumeCategoria;
-  immagine_url: string;
   taglie: CostumeTaglia[];
   quantita: string;
   ultimo_utilizzo: string;
@@ -45,7 +55,6 @@ const emptyForm = (): FormState => ({
   nome: '',
   descrizione: '',
   categoria: 'presepe_vivente',
-  immagine_url: '',
   taglie: ['M'],
   quantita: '1',
   ultimo_utilizzo: '',
@@ -56,7 +65,6 @@ function costumeToForm(costume: Costume): FormState {
     nome: costume.nome,
     descrizione: costume.descrizione ?? '',
     categoria: costume.categoria,
-    immagine_url: costume.immagine_url ?? '',
     taglie: (costume.taglie ?? []).filter((t): t is CostumeTaglia =>
       TAGLIE_OPTIONS.includes(t as CostumeTaglia),
     ),
@@ -70,7 +78,7 @@ function extractError(err: unknown): string {
   const data = err.response?.data;
   if (!data) return 'Errore durante il salvataggio';
   if (typeof data.detail === 'string') return data.detail;
-  for (const key of ['nome', 'categoria', 'taglie', 'quantita', 'immagine_url', 'non_field_errors']) {
+  for (const key of ['nome', 'categoria', 'taglie', 'quantita', 'file', 'non_field_errors']) {
     const value = data[key];
     if (Array.isArray(value) && value[0]) return String(value[0]);
     if (typeof value === 'string') return value;
@@ -86,15 +94,36 @@ export default function CostumeFormDialog({
 }: CostumeFormDialogProps) {
   const isEdit = Boolean(costume);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const { url: existingUrl } = useCostumeImageUrl(
+    open && isEdit && !removeImage && !imageFile ? costume?.id : null,
+    Boolean(open && isEdit && costume?.has_immagine && !removeImage && !imageFile),
+  );
 
   useEffect(() => {
     if (!open) return;
     setForm(costume ? costumeToForm(costume) : emptyForm());
+    setImageFile(null);
+    setPreviewUrl(null);
+    setRemoveImage(false);
     setError(null);
     setLoading(false);
   }, [open, costume]);
+
+  useEffect(() => {
+    if (!imageFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
   const handleTaglieChange = (event: SelectChangeEvent<CostumeTaglia[]>) => {
     const value = event.target.value;
@@ -102,6 +131,25 @@ export default function CostumeFormDialog({
       ...prev,
       taglie: (typeof value === 'string' ? value.split(',') : value) as CostumeTaglia[],
     }));
+  };
+
+  const handleFileChange = (fileList: FileList | null) => {
+    const file = fileList?.[0] ?? null;
+    if (!file) {
+      setImageFile(null);
+      return;
+    }
+    if (!IMMAGINE_ACCEPT.split(',').includes(file.type)) {
+      setError('Formato non ammesso. Usa JPEG, PNG o WebP.');
+      return;
+    }
+    if (file.size > IMMAGINE_MAX_BYTES) {
+      setError('Immagine troppo grande (max 2 MB).');
+      return;
+    }
+    setError(null);
+    setRemoveImage(false);
+    setImageFile(file);
   };
 
   const handleSubmit = async () => {
@@ -120,7 +168,6 @@ export default function CostumeFormDialog({
       nome: form.nome.trim(),
       descrizione: form.descrizione.trim(),
       categoria: form.categoria,
-      immagine_url: form.immagine_url.trim(),
       taglie: form.taglie,
       quantita,
       ultimo_utilizzo: form.ultimo_utilizzo || null,
@@ -129,7 +176,11 @@ export default function CostumeFormDialog({
     setLoading(true);
     setError(null);
     try {
-      await onSubmit(payload);
+      await onSubmit({
+        payload,
+        imageFile,
+        removeImage: isEdit && removeImage && !imageFile,
+      });
       onClose();
     } catch (err: unknown) {
       setError(extractError(err));
@@ -137,6 +188,8 @@ export default function CostumeFormDialog({
       setLoading(false);
     }
   };
+
+  const shownPreview = previewUrl || existingUrl;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -179,13 +232,58 @@ export default function CostumeFormDialog({
             value={form.descrizione}
             onChange={(e) => setForm((p) => ({ ...p, descrizione: e.target.value }))}
           />
-          <TextField
-            label="URL immagine"
-            fullWidth
-            value={form.immagine_url}
-            onChange={(e) => setForm((p) => ({ ...p, immagine_url: e.target.value }))}
-            placeholder="https://…"
-          />
+
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Immagine
+            </Typography>
+            {shownPreview && (
+              <Box
+                component="img"
+                src={shownPreview}
+                alt="Anteprima"
+                sx={{
+                  display: 'block',
+                  maxHeight: 160,
+                  maxWidth: '100%',
+                  objectFit: 'cover',
+                  borderRadius: 1,
+                  mb: 1.5,
+                  bgcolor: 'grey.200',
+                }}
+              />
+            )}
+            <Button variant="outlined" component="label">
+              {imageFile ? 'Cambia file' : 'Carica file'}
+              <input
+                hidden
+                type="file"
+                accept={IMMAGINE_ACCEPT}
+                onChange={(e) => handleFileChange(e.target.files)}
+              />
+            </Button>
+            {imageFile && (
+              <Typography variant="caption" display="block" sx={{ mt: 0.75 }} color="text.secondary">
+                {imageFile.name} ({Math.round(imageFile.size / 1024)} KB)
+              </Typography>
+            )}
+            {isEdit && costume?.has_immagine && !imageFile && (
+              <FormControlLabel
+                sx={{ mt: 1, display: 'flex' }}
+                control={
+                  <Checkbox
+                    checked={removeImage}
+                    onChange={(e) => setRemoveImage(e.target.checked)}
+                  />
+                }
+                label="Rimuovi immagine attuale"
+              />
+            )}
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+              JPEG, PNG o WebP — max 2 MB
+            </Typography>
+          </Box>
+
           <FormControl fullWidth>
             <InputLabel id="taglie-label">Taglie</InputLabel>
             <Select

@@ -24,17 +24,21 @@ import CostumeDetailDialog from '../components/costumi/CostumeDetailDialog';
 import CostumeFilters, {
   type CostumeFiltersState,
 } from '../components/costumi/CostumeFilters';
-import CostumeFormDialog from '../components/costumi/CostumeFormDialog';
+import CostumeFormDialog, {
+  type CostumeFormSubmit,
+} from '../components/costumi/CostumeFormDialog';
 import { PAGE_SIZE } from '../constants/costumi';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import {
   createCostume,
   deleteCostume,
+  deleteCostumeImage,
   fetchCostumi,
   fetchCostumiMeta,
   updateCostume,
+  uploadCostumeImage,
 } from '../services/costumi';
-import type { Costume, CostumeWritePayload, CostumiMeta } from '../types';
+import type { Costume, CostumiMeta } from '../types';
 
 const INITIAL_FILTERS: CostumeFiltersState = {
   q: '',
@@ -124,13 +128,23 @@ export default function Costumi() {
     setFormOpen(true);
   };
 
-  const handleFormSubmit = async (payload: CostumeWritePayload) => {
+  const handleFormSubmit = async ({ payload, imageFile, removeImage }: CostumeFormSubmit) => {
+    let saved: Costume;
     if (editing) {
-      const updated = await updateCostume(editing.id, payload);
-      setSelected(updated);
+      saved = await updateCostume(editing.id, payload);
+      if (removeImage) {
+        await deleteCostumeImage(saved.id);
+        saved = { ...saved, has_immagine: false };
+      }
     } else {
-      await createCostume(payload);
+      saved = await createCostume(payload);
     }
+
+    if (imageFile) {
+      saved = await uploadCostumeImage(saved.id, imageFile);
+    }
+
+    setSelected(saved);
     await Promise.all([loadList(), loadMeta()]);
   };
 
