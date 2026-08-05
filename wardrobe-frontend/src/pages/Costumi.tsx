@@ -19,6 +19,7 @@ import { useTheme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { isAxiosError } from 'axios';
+import { useNavigate } from 'react-router-dom';
 import CostumeCard from '../components/costumi/CostumeCard';
 import CostumeDetailDialog from '../components/costumi/CostumeDetailDialog';
 import CostumeFilters, {
@@ -50,6 +51,7 @@ const INITIAL_FILTERS: CostumeFiltersState = {
 export default function Costumi() {
   const theme = useTheme();
   const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
+  const navigate = useNavigate();
 
   const [filters, setFilters] = useState<CostumeFiltersState>(INITIAL_FILTERS);
   const debouncedQ = useDebouncedValue(filters.q, 300);
@@ -306,6 +308,10 @@ export default function Costumi() {
         onClose={() => setDetailOpen(false)}
         onEdit={handleOpenEdit}
         onDelete={(c) => void handleDelete(c)}
+        onPrenota={(c) => {
+          setDetailOpen(false);
+          navigate(`/prenotazioni?costume=${c.id}`);
+        }}
         deleting={deleting}
       />
 

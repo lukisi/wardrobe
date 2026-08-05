@@ -107,3 +107,57 @@ class InventarioTaglia(models.Model):
             raise ValidationError({
                 'taglia': f'Taglia non ammessa. Usa {", ".join(Inventario.TAGLIE_AMMESSE)}',
             })
+
+
+class Prenotazione(models.Model):
+    class Stato(models.TextChoices):
+        ATTIVA = 'attiva', 'Attiva'
+        ANNULLATA = 'annullata', 'Annullata'
+
+    costume = models.ForeignKey(
+        Inventario,
+        on_delete=models.CASCADE,
+        related_name='prenotazioni',
+    )
+    taglia = models.CharField(
+        max_length=4,
+        choices=[(t, t) for t in Inventario.TAGLIE_AMMESSE],
+    )
+    data_inizio = models.DateField()
+    data_fine = models.DateField()
+    stato = models.CharField(
+        max_length=16,
+        choices=Stato.choices,
+        default=Stato.ATTIVA,
+        db_index=True,
+    )
+    note = models.TextField(blank=True, default='')
+    creata_da = models.ForeignKey(
+        'auth.User',
+        on_delete=models.PROTECT,
+        related_name='prenotazioni_create',
+    )
+    creata_il = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Prenotazione'
+        verbose_name_plural = 'Prenotazioni'
+        ordering = ['-data_inizio', '-id']
+        indexes = [
+            models.Index(fields=['costume', 'taglia', 'stato']),
+            models.Index(fields=['data_inizio', 'data_fine']),
+        ]
+
+    def __str__(self):
+        return (
+            f'{self.costume.codice} {self.taglia} '
+            f'{self.data_inizio}→{self.data_fine} ({self.stato})'
+        )
+
+    def clean(self):
+        if self.taglia not in Inventario.TAGLIE_AMMESSE:
+            raise ValidationError({
+                'taglia': f'Taglia non ammessa. Usa {", ".join(Inventario.TAGLIE_AMMESSE)}',
+            })
+        if self.data_inizio and self.data_fine and self.data_inizio > self.data_fine:
+            raise ValidationError({'data_fine': 'La data fine deve essere ≥ data inizio'})

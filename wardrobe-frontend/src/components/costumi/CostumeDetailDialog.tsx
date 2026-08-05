@@ -14,6 +14,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import type { Costume } from '../../types';
 import { CATEGORIA_LABELS, formatTaglieStock } from '../../constants/costumi';
 import { useCostumeImageUrl } from '../../hooks/useCostumeImageUrl';
@@ -24,6 +25,7 @@ interface CostumeDetailDialogProps {
   onClose: () => void;
   onEdit: (costume: Costume) => void;
   onDelete: (costume: Costume) => void;
+  onPrenota?: (costume: Costume) => void;
   deleting?: boolean;
 }
 
@@ -40,6 +42,7 @@ export default function CostumeDetailDialog({
   onClose,
   onEdit,
   onDelete,
+  onPrenota,
   deleting = false,
 }: CostumeDetailDialogProps) {
   const { url, loading } = useCostumeImageUrl(
@@ -150,6 +153,16 @@ export default function CostumeDetailDialog({
         </Button>
         <Box sx={{ flex: 1 }} />
         <Button onClick={onClose}>Chiudi</Button>
+        {onPrenota && (
+          <Button
+            variant="outlined"
+            startIcon={<EventAvailableIcon />}
+            onClick={() => onPrenota(costume)}
+            disabled={!costume.disponibile}
+          >
+            Prenota
+          </Button>
+        )}
         <Button variant="contained" startIcon={<EditIcon />} onClick={() => onEdit(costume)}>
           Modifica
         </Button>
