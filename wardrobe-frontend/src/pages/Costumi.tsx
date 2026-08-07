@@ -43,25 +43,16 @@ import {
 } from '../services/costumi';
 import type { Costume, CostumiMeta } from '../types';
 import {
-  loadCatalogPeriodPreference,
-  saveCatalogPeriodPreference,
-} from '../utils/catalogPeriodStorage';
+  hasCatalogFiltersInUrl,
+  loadCatalogFiltersPreference,
+  mergeWithStoredPeriodDates,
+  saveCatalogFiltersPreference,
+} from '../utils/catalogFiltersStorage';
 
 function periodFilterReady(filters: CostumeFiltersState): boolean {
   if (filters.mode !== 'periodo') return false;
   if (!filters.dal || !filters.al) return false;
   return filters.al >= filters.dal;
-}
-
-function withStoredPeriodDates(next: CostumeFiltersState): CostumeFiltersState {
-  if (next.mode !== 'periodo' || (next.dal && next.al)) return next;
-  const stored = loadCatalogPeriodPreference();
-  if (!stored) return next;
-  return {
-    ...next,
-    dal: next.dal || stored.dal,
-    al: next.al || stored.al,
-  };
 }
 
 export default function Costumi() {
@@ -89,35 +80,23 @@ export default function Costumi() {
   const [editing, setEditing] = useState<Costume | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Ripristina l'ultimo periodo se si apre /costumi senza mode in URL (es. dalla nav).
-  const didHydratePeriod = useRef(false);
+  // Ripristina i filtri salvati se si apre /costumi senza query (es. dalla nav).
+  const didHydrateFilters = useRef(false);
   useEffect(() => {
-    if (didHydratePeriod.current) return;
-    didHydratePeriod.current = true;
+    if (didHydrateFilters.current) return;
+    didHydrateFilters.current = true;
 
-    if (searchParams.has('mode')) {
-      const { filters: fromUrl } = parseCostumeFiltersFromSearch(searchParams);
-      saveCatalogPeriodPreference({
-        mode: fromUrl.mode,
-        dal: fromUrl.dal,
-        al: fromUrl.al,
-      });
+    const { filters: fromUrl, page: fromPage } = parseCostumeFiltersFromSearch(searchParams);
+
+    if (hasCatalogFiltersInUrl(searchParams)) {
+      saveCatalogFiltersPreference(fromUrl);
       return;
     }
 
-    const stored = loadCatalogPeriodPreference();
-    if (!stored || stored.mode !== 'periodo') return;
+    const stored = loadCatalogFiltersPreference();
+    if (!stored) return;
 
-    const { filters: current, page: currentPage } = parseCostumeFiltersFromSearch(searchParams);
-    const restored = costumeFiltersToSearchParams(
-      {
-        ...current,
-        mode: 'periodo',
-        dal: stored.dal,
-        al: stored.al,
-      },
-      currentPage,
-    );
+    const restored = costumeFiltersToSearchParams(stored, fromPage);
     if (restored.toString() !== searchParams.toString()) {
       setSearchParams(restored, { replace: true });
     }
@@ -125,12 +104,8 @@ export default function Costumi() {
 
   const replaceSearch = useCallback(
     (nextFilters: CostumeFiltersState, nextPage: number) => {
-      const merged = withStoredPeriodDates(nextFilters);
-      saveCatalogPeriodPreference({
-        mode: merged.mode,
-        dal: merged.dal,
-        al: merged.al,
-      });
+      const merged = mergeWithStoredPeriodDates(nextFilters);
+      saveCatalogFiltersPreference(merged);
       const next = costumeFiltersToSearchParams(merged, nextPage);
       if (next.toString() === searchParams.toString()) return;
       setSearchParams(next, { replace: true });
