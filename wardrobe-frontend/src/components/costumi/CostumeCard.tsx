@@ -21,6 +21,7 @@ interface CostumeCardProps {
 
 export default function CostumeCard({ costume, onClick }: CostumeCardProps) {
   const { url, loading } = useCostumeImageUrl(costume.id, costume.has_immagine);
+  const taglieLabel = formatTaglieStock(costume.taglie_stock);
 
   return (
     <Card
@@ -71,19 +72,21 @@ export default function CostumeCard({ costume, onClick }: CostumeCardProps) {
               color="primary"
               variant="outlined"
             />
-            <Chip
-              size="small"
-              label={costume.disponibile ? 'Disponibile' : 'Non disponibile'}
-              color={costume.disponibile ? 'success' : 'default'}
-            />
           </Stack>
-          {formatTaglieStock(costume.taglie_stock) && (
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Taglie: {formatTaglieStock(costume.taglie_stock)}
+          <Box>
+            <Typography variant="caption" color="text.secondary" component="span">
+              Taglie in magazzino:{' '}
+            </Typography>
+            {taglieLabel ? (
+              <Typography variant="caption" color="text.secondary" component="span">
+                {taglieLabel}
               </Typography>
-            </Box>
-          )}
+            ) : (
+              <Typography variant="caption" color="error" component="span">
+                Non disponibile
+              </Typography>
+            )}
+          </Box>
         </CardContent>
       </CardActionArea>
     </Card>

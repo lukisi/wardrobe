@@ -13,11 +13,18 @@ export const TAGLIE_OPTIONS: CostumeTaglia[] = ['S', 'M', 'L', 'XL'];
 
 export const PAGE_SIZE = 12;
 
-/** Formatta stock per taglia, es. "S×1 · M×2". */
+/** Formatta stock per taglia, es. "S×1 · M×2". Stringa vuota se nessuna quantità > 0. */
 export function formatTaglieStock(
   stock: { taglia: string; quantita: number }[] | undefined | null,
 ): string {
   const rows = (stock ?? []).filter((r) => r.quantita > 0);
   if (!rows.length) return '';
   return rows.map((r) => `${r.taglia}×${r.quantita}`).join(' · ');
+}
+
+/** True se esiste almeno una taglia con quantità > 0 in magazzino. */
+export function hasStockInMagazzino(
+  stock: { taglia: string; quantita: number }[] | undefined | null,
+): boolean {
+  return (stock ?? []).some((r) => r.quantita > 0);
 }

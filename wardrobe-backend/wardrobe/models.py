@@ -46,11 +46,6 @@ class Inventario(models.Model):
         default='',
         help_text='MIME type dell’immagine (es. image/jpeg)',
     )
-    ultimo_utilizzo = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Data dell'ultimo utilizzo",
-    )
 
     class Meta:
         verbose_name = 'Costume'

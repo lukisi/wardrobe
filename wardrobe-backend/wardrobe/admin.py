@@ -25,7 +25,6 @@ class InventarioAdminForm(forms.ModelForm):
             'nome',
             'descrizione',
             'categoria',
-            'ultimo_utilizzo',
         )
 
     def save(self, commit=True):
@@ -58,7 +57,6 @@ class InventarioAdmin(admin.ModelAdmin):
         'stock_display',
         'disponibile_display',
         'has_immagine_display',
-        'ultimo_utilizzo',
     )
     list_filter = ('categoria',)
     search_fields = ('codice', 'nome', 'descrizione')
@@ -70,9 +68,6 @@ class InventarioAdmin(admin.ModelAdmin):
         }),
         ('Classificazione', {
             'fields': ('categoria',),
-        }),
-        ('Magazzino', {
-            'fields': ('ultimo_utilizzo',),
         }),
         ('Media', {
             'fields': ('anteprima_immagine', 'immagine_upload'),

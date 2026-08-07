@@ -5,11 +5,11 @@ import { BRAND_NAME, ORATORIO_NAME } from '../constants/brand';
 const SECTIONS = [
   {
     title: 'Prima dell’allestimento',
-    body: 'Controlla nel database i costumi disponibili per la scena (presepe vivente, profeti, santi, apostoli). Filtra per categoria e taglia, poi annota quantità e ultimo utilizzo.',
+    body: 'Sfoglia il database per idea e categoria, oppure filtra i costumi disponibili in un periodo (Dal / Al) se stai preparando una rappresentazione. Controlla le taglie in magazzino e le quantità.',
   },
   {
     title: 'Scelta e preparazione',
-    body: 'Preferisci pezzi in buono stato e della taglia corretta. Se un costume risulta non disponibile, cerca un’alternativa nella stessa categoria o pianifica un ripristino prima della prova.',
+    body: 'Preferisci pezzi in buono stato e della taglia corretta. Se per una data non c’è disponibilità, cerca un’alternativa nella stessa categoria o scegli un altro periodo.',
   },
   {
     title: 'Durante le prove',
@@ -17,7 +17,7 @@ const SECTIONS = [
   },
   {
     title: 'Dopo l’evento',
-    body: 'Riporta i costumi in magazzino e aggiorna l’ultimo utilizzo. Usa Prenotazioni per bloccare costume e taglia nel periodo dell’evento: lo stock fisico non cambia, la disponibilità è calcolata sulle prenotazioni attive sovrapposte.',
+    body: 'Riporta i costumi in magazzino. Usa Prenotazioni per bloccare costume e taglia nel periodo dell’evento: lo stock fisico non cambia, la disponibilità nel catalogo filtrato per periodo è calcolata sulle prenotazioni attive sovrapposte.',
   },
 ] as const;
 

@@ -23,8 +23,6 @@ export interface InventarioItem {
   categoria: CostumeCategoria;
   has_immagine: boolean;
   taglie_stock: TagliaStock[];
-  disponibile: boolean;
-  ultimo_utilizzo: string | null;
 }
 
 /** Alias esplicito per il dominio costumi (stesso payload API). */
@@ -35,7 +33,6 @@ export interface CostumeWritePayload {
   descrizione?: string;
   categoria: CostumeCategoria;
   taglie_stock?: TagliaStock[];
-  ultimo_utilizzo?: string | null;
 }
 
 export interface CostumiListResponse {
@@ -53,15 +50,15 @@ export interface CostumiMetaCategoria {
 
 export interface CostumiMeta {
   totale: number;
-  disponibili: number;
   categorie: CostumiMetaCategoria[];
 }
 
 export interface CostumiListParams {
   q?: string;
   categoria?: CostumeCategoria | '';
-  disponibile?: boolean | null;
   taglia?: CostumeTaglia | '';
+  dal?: string;
+  al?: string;
   page?: number;
   page_size?: number;
 }

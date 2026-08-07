@@ -38,6 +38,8 @@ export default function Prenotazioni() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialCostumeParam = searchParams.get('costume');
   const initialCostumeId = initialCostumeParam ? Number(initialCostumeParam) : null;
+  const initialDal = searchParams.get('dal');
+  const initialAl = searchParams.get('al');
 
   const [items, setItems] = useState<Prenotazione[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,10 +97,15 @@ export default function Prenotazioni() {
 
   const handleFormClose = () => {
     setFormOpen(false);
-    if (searchParams.has('costume')) {
-      searchParams.delete('costume');
-      setSearchParams(searchParams, { replace: true });
+    let changed = false;
+    const next = new URLSearchParams(searchParams);
+    for (const key of ['costume', 'dal', 'al'] as const) {
+      if (next.has(key)) {
+        next.delete(key);
+        changed = true;
+      }
     }
+    if (changed) setSearchParams(next, { replace: true });
   };
 
   return (
@@ -266,6 +273,8 @@ export default function Prenotazioni() {
             ? initialCostumeId
             : null
         }
+        initialDal={initialDal}
+        initialAl={initialAl}
       />
     </Container>
   );

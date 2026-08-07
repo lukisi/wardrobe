@@ -16,7 +16,11 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import type { Costume } from '../../types';
-import { CATEGORIA_LABELS, formatTaglieStock } from '../../constants/costumi';
+import {
+  CATEGORIA_LABELS,
+  formatTaglieStock,
+  hasStockInMagazzino,
+} from '../../constants/costumi';
 import { useCostumeImageUrl } from '../../hooks/useCostumeImageUrl';
 
 interface CostumeDetailDialogProps {
@@ -27,13 +31,6 @@ interface CostumeDetailDialogProps {
   onDelete: (costume: Costume) => void;
   onPrenota?: (costume: Costume) => void;
   deleting?: boolean;
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('it-IT');
 }
 
 export default function CostumeDetailDialog({
@@ -51,6 +48,8 @@ export default function CostumeDetailDialog({
   );
 
   if (!costume) return null;
+
+  const taglieLabel = formatTaglieStock(costume.taglie_stock);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -121,23 +120,21 @@ export default function CostumeDetailDialog({
                 color="primary"
                 variant="outlined"
               />
-              <Chip
-                size="small"
-                label={costume.disponibile ? 'Disponibile' : 'Non disponibile'}
-                color={costume.disponibile ? 'success' : 'default'}
-              />
             </Stack>
 
             <Typography variant="body1" sx={{ mb: 2, whiteSpace: 'pre-wrap' }}>
               {costume.descrizione?.trim() || 'Nessuna descrizione.'}
             </Typography>
 
-            <Typography variant="body2" sx={{ mb: 0.5 }}>
-              <strong>Taglie:</strong>{' '}
-              {formatTaglieStock(costume.taglie_stock) || '—'}
-            </Typography>
             <Typography variant="body2">
-              <strong>Ultimo utilizzo:</strong> {formatDate(costume.ultimo_utilizzo)}
+              <strong>Taglie in magazzino:</strong>{' '}
+              {taglieLabel ? (
+                taglieLabel
+              ) : (
+                <Box component="span" sx={{ color: 'error.main' }}>
+                  Non disponibile
+                </Box>
+              )}
             </Typography>
           </Box>
         </Stack>
@@ -158,7 +155,7 @@ export default function CostumeDetailDialog({
             variant="outlined"
             startIcon={<EventAvailableIcon />}
             onClick={() => onPrenota(costume)}
-            disabled={!costume.disponibile}
+            disabled={!hasStockInMagazzino(costume.taglie_stock)}
           >
             Prenota
           </Button>
